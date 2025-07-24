@@ -265,13 +265,13 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <h3 class="font-bold mb-4 text-lg text-black">Select Date</h3>
-                <UCalendar
-                  size="lg"
-                  v-model="selectedDate"
-                  :min="new Date()"
-                  @dayclick="handleDayClick"
-                  class="w-full"
-                />
+                <div class="bg-white rounded-lg border p-4">
+                  <UCalendar
+                    v-model="selectedDate"
+                    :min-date="new Date()"
+                    @update:model-value="handleDateSelect"
+                  />
+                </div>
               </div>
               
               <div class="flex flex-col">
@@ -607,13 +607,13 @@ function getServiceDuration(serviceId) {
   return service ? service.description.match(/Duration: (\d+) mins/)?.[1] || '' : ''
 }
 
-function handleDayClick(day) {
-  selectedDate.value = day
+function handleDateSelect(date) {
+  selectedDate.value = date
   selectedSlot.value = '' // Reset selected slot when date changes
   
   // Only fetch slots if we have service and staff selected
-  if (selectedService.value && selectedStaff.value) {
-    fetchSlots(day)
+  if (selectedService.value && selectedStaff.value && date) {
+    fetchSlots(date)
   }
 }
 
