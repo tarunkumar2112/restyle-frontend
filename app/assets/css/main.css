@@ -16,3 +16,12 @@
   --color-green-900: #0a5331;
   --color-green-950: #052e16;
 }
+
+@theme light {
+  --background: #ffffff;
+  --text-color: #222222;
+  --primary: #00c16a;
+  --secondary: #effdf5;
+  --font-sans: 'Public Sans', sans-serif;
+  /* Add more light theme variables as needed */
+}
