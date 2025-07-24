@@ -267,8 +267,16 @@
                 <h3 class="font-bold mb-4 text-lg text-black">Select Date</h3>
                 <div class="bg-white rounded-lg border p-4">
                   <UCalendar
-                    v-model="selectedDate"
-                    :min-date="new Date()"
+                    :model-value="selectedDate"
+                    :min-value="new Date()"
+                    :month-controls="true"
+                    :year-controls="true"
+                    :next-year-icon="'i-lucide-chevrons-right'"
+                    :prev-year-icon="'i-lucide-chevrons-left'"
+                    :next-month-icon="'i-lucide-chevron-right'"
+                    :prev-month-icon="'i-lucide-chevron-left'"
+                    color="primary"
+                    size="md"
                     @update:model-value="handleDateSelect"
                   />
                 </div>
