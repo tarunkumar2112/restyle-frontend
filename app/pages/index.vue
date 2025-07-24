@@ -11,7 +11,7 @@
         to="https://ui.nuxt.com/getting-started/installation/nuxt"
         target="_blank"
       />
-
+helo
       <UButton
         label="GitHub"
         color="neutral"
