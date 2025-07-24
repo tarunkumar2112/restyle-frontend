@@ -4,7 +4,6 @@
     <p class="text-lg mb-4">
       Experience professional hair and beauty services with our expert stylists
     </p>
-
     <div class="w-full max-w-xl">
       <UStepper :items="steps" v-model="currentStep">
         <template #StepDepartment>
@@ -13,22 +12,27 @@
               <div v-if="loadingGroups">
                 <USkeleton class="h-16 mb-4 rounded-lg bg-gray-100" v-for="i in 6" :key="i" />
               </div>
-              <URadioGroup
-                v-else
-                color="primary"
-                variant="card"
-                :items="departmentRadioItems"
-                v-model="selectedDepartment"
-                class="mb-6"
-                :ui="{
-                  wrapper: 'gap-4',
-                  card: ({ checked }) => checked
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-white text-black border-gray-300',
-                  label: 'text-lg font-semibold text-black',
-                  description: 'text-black'
-                }"
-              />
+              <div v-else>
+                <div class="grid gap-4 mb-6">
+                  <div
+                    v-for="item in departmentRadioItems"
+                    :key="item.value"
+                    @click="selectedDepartment = item.value"
+                    :class="[
+                      'cursor-pointer p-4 border rounded-xl flex items-center justify-between transition',
+                      selectedDepartment === item.value
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-black border-gray-300 hover:border-primary'
+                    ]"
+                  >
+                    <div class="flex items-center gap-3">
+                      <UIcon :name="item.icon || 'i-lucide-user-female'" class="text-2xl" />
+                      <span class="text-lg font-semibold">{{ item.label }}</span>
+                    </div>
+                    <div class="text-black text-sm">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
               <div class="flex gap-4">
                 <UButton
                   type="button"
@@ -51,28 +55,33 @@
             </form>
           </div>
         </template>
+
         <template #StepService>
           <div>
             <form @submit.prevent="handleServiceSubmit">
               <div v-if="loadingServices">
                 <USkeleton class="h-16 mb-4 rounded-lg bg-gray-100" v-for="i in 3" :key="i" />
               </div>
-              <URadioGroup
-                v-else
-                color="primary"
-                variant="card"
-                :items="serviceRadioItems"
-                v-model="selectedService"
-                class="mb-6"
-                :ui="{
-                  wrapper: 'gap-4',
-                  card: ({ checked }) => checked
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-white text-black border-gray-300',
-                  label: 'text-lg font-semibold text-black',
-                  description: 'text-black'
-                }"
-              />
+              <div v-else>
+                <div class="grid gap-4 mb-6">
+                  <div
+                    v-for="item in serviceRadioItems"
+                    :key="item.value"
+                    @click="selectedService = item.value"
+                    :class="[
+                      'cursor-pointer p-4 border rounded-xl flex items-center justify-between transition',
+                      selectedService === item.value
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-black border-gray-300 hover:border-primary'
+                    ]"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-lg font-semibold">{{ item.label }}</span>
+                    </div>
+                    <div class="text-black text-sm">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
               <div class="flex gap-4">
                 <UButton
                   type="button"
@@ -97,18 +106,233 @@
             </div>
           </div>
         </template>
+
         <template #StepGuests>
-          <div>Guests step</div>
+          <div>
+            <div class="mb-4 p-4 rounded-xl border border-gray-200 bg-white flex items-center justify-between">
+              <div>
+                <div class="font-bold text-lg mb-1">
+                  {{ selectedServiceObj?.label || 'No service selected' }}
+                </div>
+                <div class="text-black mb-2">
+                  {{ selectedServiceObj?.description }}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-primary" />
+                <span class="font-semibold text-black">{{ guestCount }}</span>
+              </div>
+            </div>
+            <div class="mb-4">
+              <label class="block font-semibold mb-2 text-black">Guests</label>
+              <UInputNumber
+                v-model="guestCount"
+                :min="1"
+                :max="10"
+                :increment="{
+                  color: 'neutral',
+                  variant: 'solid',
+                  size: 'xs'
+                }"
+                :decrement="{
+                  color: 'neutral',
+                  variant: 'solid',
+                  size: 'xs'
+                }"
+                class="w-32"
+              />
+            </div>
+            <div class="mt-2 text-base font-semibold text-black">
+              You{{ guestCount > 1 ? ' and ' + (guestCount - 1) + ' guest' + (guestCount > 2 ? 's' : '') : '' }}
+            </div>
+            <div class="flex gap-4 mt-6">
+              <UButton
+                type="button"
+                color="neutral"
+                class="text-lg font-bold flex-1"
+                @click="goToPreviousStep"
+              >
+                Previous
+              </UButton>
+              <UButton
+                type="button"
+                color="primary"
+                :disabled="!guestCount"
+                class="text-lg font-bold flex-1"
+                @click="goToNextStep"
+              >
+                Continue
+              </UButton>
+            </div>
+          </div>
         </template>
+
         <template #StepStaff>
-          <div>Staff selection step</div>
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <div class="w-1/2 pr-2">
+                <div class="font-bold text-lg mb-1">Service</div>
+                <div class="text-black">{{ selectedServiceObj?.label }}</div>
+                <div class="text-sm text-primary font-semibold mt-1">
+                  Duration: {{ getServiceDuration(selectedService) }} mins
+                </div>
+              </div>
+              <div class="w-1/2 pl-2">
+                <div class="font-bold text-lg mb-1">Guests</div>
+                <div class="flex items-center gap-2">
+                  <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-primary" />
+                  <span class="font-semibold text-black">{{ guestCount }}</span>
+                </div>
+              </div>
+            </div>
+            <form @submit.prevent="handleStaffSubmit">
+              <div v-if="loadingStaff">
+                <USkeleton class="h-16 mb-4 rounded-xl bg-gray-100" v-for="i in staffRadioItems.length || 3" :key="i" />
+              </div>
+              <div v-else>
+                <div class="grid gap-4">
+                  <div
+                    v-for="item in staffRadioItems"
+                    :key="item.value"
+                    @click="selectedStaff = item.value"
+                    :class="[
+                      'cursor-pointer p-4 border rounded-xl flex items-center justify-between transition',
+                      selectedStaff === item.value
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-black border-gray-300 hover:border-primary'
+                    ]"
+                  >
+                    <div class="flex items-center gap-3">
+                      <UIcon :name="item.icon" class="text-2xl" />
+                      <span class="text-lg font-semibold">{{ item.label }}</span>
+                      <span v-if="item.badge" class="ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs">{{ item.badge }}</span>
+                    </div>
+                    <div v-if="item.value !== 'any'" class="flex items-center gap-2">
+                      <UIcon name="i-lucide-user" class="text-xl text-primary" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex gap-4 mt-6">
+                <UButton
+                  type="button"
+                  color="neutral"
+                  class="text-lg font-bold flex-1"
+                  @click="goToPreviousStep"
+                >
+                  Previous
+                </UButton>
+                <UButton
+                  type="submit"
+                  color="primary"
+                  :disabled="!selectedStaff || loadingStaff"
+                  class="text-lg font-bold flex-1"
+                >
+                  Continue
+                </UButton>
+              </div>
+            </form>
+          </div>
         </template>
+
         <template #StepDateTime>
-          <div>Date & Time step</div>
+          <div>
+            <!-- Top summary boxes -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+              <div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center">
+                <div class="font-bold text-lg mb-1">Service</div>
+                <div class="text-primary font-semibold text-center">
+                  {{ selectedServiceObj?.label || 'No service selected' }}
+                </div>
+              </div>
+              <div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center">
+                <div class="font-bold text-lg mb-1">Guests</div>
+                <div class="flex items-center gap-2">
+                  <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-primary" />
+                  <span class="font-semibold text-black text-xl">{{ guestCount }}</span>
+                </div>
+              </div>
+              <div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center">
+                <div class="font-bold text-lg mb-1">Staff</div>
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-user" class="text-2xl text-primary" />
+                  <span class="font-semibold text-black text-center">{{ selectedStaffObj?.label || 'Any available staff' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Calendar and slots row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 class="font-bold mb-4 text-lg text-black">Select Date</h3>
+                <UCalendar
+                  size="xl"
+                  v-model="selectedDate"
+                  :min="new Date()"
+                  @dayclick="handleDayClick"
+                  class="w-full"
+                />
+              </div>
+              
+              <div class="flex flex-col">
+                <h3 class="font-bold mb-4 text-lg text-black">Available Time Slots</h3>
+                <div v-if="loadingSlots" class="space-y-2">
+                  <USkeleton class="h-10 rounded bg-gray-100" v-for="i in 6" :key="i" />
+                </div>
+                <div v-else class="flex-1">
+                  <div v-if="slotsForDate.length > 0" class="space-y-2 max-h-80 overflow-y-auto pr-2">
+                    <UButton
+                      v-for="slot in slotsForDate"
+                      :key="slot"
+                      color="primary"
+                      variant="soft"
+                      class="w-full"
+                      @click="selectedSlot = slot"
+                      :class="selectedSlot === slot ? 'ring-2 ring-primary font-bold !bg-primary !text-white' : ''"
+                    >
+                      {{ slot }}
+                    </UButton>
+                  </div>
+                  <div v-else class="text-gray-500 text-center py-8">
+                    {{ selectedDate ? 'No slots available for this date.' : 'Please select a date to see available slots.' }}
+                  </div>
+                </div>
+                
+                <div v-if="selectedSlot" class="mt-4 p-3 bg-primary/10 rounded-lg">
+                  <div class="text-base font-semibold text-primary">
+                    Selected Slot: {{ selectedSlot }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex gap-4 mt-8">
+              <UButton
+                type="button"
+                color="neutral"
+                class="text-lg font-bold flex-1"
+                @click="goToPreviousStep"
+              >
+                Previous
+              </UButton>
+              <UButton
+                type="button"
+                color="primary"
+                :disabled="!selectedSlot"
+                class="text-lg font-bold flex-1"
+                @click="goToNextStepDateTime"
+              >
+                Continue
+              </UButton>
+            </div>
+          </div>
         </template>
+
         <template #StepInformation>
           <div>Information step</div>
         </template>
+
         <template #StepSuccess>
           <div>Success step</div>
         </template>
@@ -118,12 +342,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
 const departmentRadioItems = ref([])
-
 const selectedGroup = ref('')
 const groupTabs = ref([])
 const loadingGroups = ref(true)
@@ -131,6 +354,25 @@ const loadingGroups = ref(true)
 const selectedService = ref('')
 const serviceRadioItems = ref([])
 const loadingServices = ref(false)
+
+const guestCount = ref(1)
+
+const selectedServiceObj = computed(() =>
+  serviceRadioItems.value.find(item => item.value === selectedService.value)
+)
+
+const selectedStaff = ref('')
+const staffRadioItems = ref([])
+const loadingStaff = ref(false)
+
+const selectedStaffObj = computed(() =>
+  staffRadioItems.value.find(item => item.value === selectedStaff.value)
+)
+
+const selectedDate = ref(new Date())
+const slotsForDate = ref([])
+const selectedSlot = ref('')
+const loadingSlots = ref(false)
 
 const steps = [
   {
@@ -180,14 +422,14 @@ const steps = [
 // Map group names to icons
 function getGroupIcon(name) {
   switch (name.toLowerCase()) {
-    case 'ladies': return 'i-lucide-user-female';
+    case 'ladies': return 'i-lucide-user';
     case 'gents': return 'i-lucide-user';
     case 'laser hair removal': return 'i-lucide-zap';
     case 'waxing': return 'i-lucide-droplet';
     case 'threading': return 'i-lucide-wand';
     case 'bridal': return 'i-lucide-diamond';
     case 'facials': return 'i-lucide-smile';
-    default: return 'i-lucide-folder';
+    default: return 'i-lucide-user'; // fallback to user icon
   }
 }
 
@@ -202,7 +444,6 @@ onMounted(async () => {
       description: group.description || '',
       icon: getGroupIcon(group.name)
     }))
-    // Do not select any by default
     selectedDepartment.value = ''
     groupTabs.value = data.groups.map(group => ({
       label: group.name,
@@ -231,12 +472,62 @@ watch(selectedDepartment, async (groupId) => {
       value: service.id,
       description: `Duration: ${service.slotDuration} mins | Staff: ${service.teamMembers?.length ?? 0}`
     }))
-    // Do not select any by default
     selectedService.value = ''
   } catch (e) {
     serviceRadioItems.value = []
   } finally {
     loadingServices.value = false
+  }
+})
+
+// Watch for selectedService change and fetch staff
+watch(selectedService, async (serviceId) => {
+  staffRadioItems.value = []
+  selectedStaff.value = ''
+  if (!serviceId) return
+  loadingStaff.value = true
+  try {
+    const groupId = selectedDepartment.value
+    const lastServiceApi = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getDynamicService?id=${groupId}`)
+    const lastServiceData = await lastServiceApi.json()
+    const serviceObj = (lastServiceData.calendars || []).find(s => s.id === serviceId)
+    const teamMembers = serviceObj?.teamMembers || []
+
+    const items = [{
+      label: 'Any available staff',
+      value: 'any',
+      badge: 'Recommended',
+      icon: 'i-lucide-user'
+    }]
+
+    const staffPromises = teamMembers.map(async member => {
+      try {
+        const staffRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getStaff?id=${member.userId}`)
+        const staffData = await staffRes.json()
+        return {
+          label: staffData.name,
+          value: staffData.id,
+          icon: 'i-lucide-user'
+        }
+      } catch (e) {
+        return null
+      }
+    })
+
+    const staffResults = await Promise.all(staffPromises)
+    items.push(...staffResults.filter(Boolean))
+    staffRadioItems.value = items
+  } catch (e) {
+    staffRadioItems.value = []
+  } finally {
+    loadingStaff.value = false
+  }
+})
+
+// Watch for date changes and fetch slots automatically when in DateTime step
+watch([selectedDate, currentStep], ([newDate, newStep]) => {
+  if (newStep === 'StepDateTime' && newDate && selectedService.value && selectedStaff.value) {
+    fetchSlots(newDate)
   }
 })
 
@@ -246,8 +537,11 @@ function goToPreviousStep() {
     currentStep.value = 'StepDepartment'
   } else if (currentStep.value === 'StepGuests') {
     currentStep.value = 'StepService'
+  } else if (currentStep.value === 'StepStaff') {
+    currentStep.value = 'StepGuests'
+  } else if (currentStep.value === 'StepDateTime') {
+    currentStep.value = 'StepStaff'
   }
-  // Add more as needed for other steps
 }
 
 // Handle department submit
@@ -263,5 +557,76 @@ function handleServiceSubmit() {
     currentStep.value = 'StepGuests'
   }
 }
-</script>
 
+function handleStaffSubmit() {
+  if (selectedStaff.value) {
+    currentStep.value = 'StepDateTime'
+  }
+}
+
+function goToNextStep() {
+  if (currentStep.value === 'StepGuests' && guestCount.value) {
+    currentStep.value = 'StepStaff'
+  }
+}
+
+function getServiceDuration(serviceId) {
+  const service = serviceRadioItems.value.find(s => s.value === serviceId)
+  return service ? service.description.match(/Duration: (\d+) mins/)?.[1] || '' : ''
+}
+
+function handleDayClick(day) {
+  selectedDate.value = day
+  selectedSlot.value = '' // Reset selected slot when date changes
+  if (selectedService.value && selectedStaff.value) {
+    fetchSlots(day)
+  }
+}
+
+function fetchSlots(date) {
+  if (!date || !selectedService.value || !selectedStaff.value) {
+    slotsForDate.value = []
+    return
+  }
+
+  selectedSlot.value = ''
+  slotsForDate.value = []
+  loadingSlots.value = true
+  
+  const calendarId = selectedService.value
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+
+  // Mountain Standard Time (UTC -7)
+  const msOffset = -7 * 60 * 60 * 1000
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(date)
+  end.setHours(23, 59, 59, 999)
+
+  const startDate = start.getTime() - msOffset
+  const endDate = end.getTime() - msOffset
+
+  fetch(`https://restyle-api.netlify.app/.netlify/functions/getAllstaffslot?calendarId=${calendarId}&userId=${userId}&startDate=${startDate}&endDate=${endDate}`)
+    .then(res => res.json())
+    .then(data => {
+      console.log('Slots API response:', data) // Debug log
+      const formatted = data.formattedSlots || {}
+      const key = Object.keys(formatted)[0]
+      slotsForDate.value = key ? formatted[key] : []
+      console.log('Available slots:', slotsForDate.value) // Debug log
+    })
+    .catch((error) => {
+      console.error('Error fetching slots:', error)
+      slotsForDate.value = []
+    })
+    .finally(() => {
+      loadingSlots.value = false
+    })
+}
+
+function goToNextStepDateTime() {
+  if (selectedSlot.value) {
+    currentStep.value = 'StepInformation'
+  }
+}
+</script>
