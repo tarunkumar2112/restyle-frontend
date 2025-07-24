@@ -608,10 +608,12 @@ function getServiceDuration(serviceId) {
 function handleDateSelect(date) {
   selectedDate.value = date
   selectedSlot.value = '' // Reset selected slot when date changes
-  
-  // Only fetch slots if we have service and staff selected
+
+  // Only fetch slots if we have service and staff selected and a date is picked
   if (selectedService.value && selectedStaff.value && date) {
     fetchSlots(date)
+  } else {
+    slotsForDate.value = []
   }
 }
 
