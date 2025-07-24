@@ -263,6 +263,7 @@
 
             <!-- Calendar and slots row -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <!-- Calendar always visible on left -->
               <div>
                 <h3 class="font-bold mb-4 text-lg text-black">Select Date</h3>
                 <div class="bg-white rounded-lg border p-4">
@@ -282,6 +283,7 @@
                 </div>
               </div>
               
+              <!-- Slots always visible on right -->
               <div class="flex flex-col">
                 <h3 class="font-bold mb-4 text-lg text-black">Available Time Slots</h3>
                 <div v-if="loadingSlots" class="space-y-2">
@@ -305,7 +307,6 @@
                     {{ selectedDate ? 'No slots available for this date.' : 'Please select a date to see available slots.' }}
                   </div>
                 </div>
-                
                 <div v-if="selectedSlot" class="mt-4 p-3 bg-primary/10 rounded-lg">
                   <div class="text-base font-semibold text-primary">
                     Selected Slot: {{ selectedSlot }}
