@@ -17,6 +17,9 @@ importers:
       '@nuxt/ui':
         specifier: ^3.2.0
         version: 3.2.0(@babel/parser@7.28.0)(@netlify/blobs@9.1.2)(db0@0.3.2)(embla-carousel@8.6.0)(ioredis@5.6.1)(jwt-decode@4.0.0)(magicast@0.3.5)(typescript@5.8.3)(vite@7.0.5(@types/node@24.0.14)(jiti@2.4.2)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.0))(vue-router@4.5.1(vue@3.5.17(typescript@5.8.3)))(vue@3.5.17(typescript@5.8.3))(zod@3.25.76)
+      '@nuxtjs/toast':
+        specifier: ^3.3.1
+        version: 3.3.1
       nuxt:
         specifier: ^4.0.1
         version: 4.0.1(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.0.14)(@vue/compiler-sfc@3.5.17)(db0@0.3.2)(eslint@9.31.0(jiti@2.4.2))(ioredis@5.6.1)(lightningcss@1.30.1)(magicast@0.3.5)(optionator@0.9.4)(rollup@4.45.1)(terser@5.43.1)(typescript@5.8.3)(vite@7.0.5(@types/node@24.0.14)(jiti@2.4.2)(lightningcss@1.30.1)(terser@5.43.1)(yaml@2.8.0))(vue-tsc@3.0.1(typescript@5.8.3))(yaml@2.8.0)
@@ -1036,6 +1039,9 @@ packages:
 
   '@nuxtjs/color-mode@3.5.2':
     resolution: {integrity: sha512-cC6RfgZh3guHBMLLjrBB2Uti5eUoGM9KyauOaYS9ETmxNWBMTvpgjvSiSJp1OFljIXPIqVTJ3xtJpSNZiO3ZaA==}
+
+  '@nuxtjs/toast@3.3.1':
+    resolution: {integrity: sha512-b9JpyjSw5ZOyjskBvNc4NEebe0qxB6LivBlO84gHOnsaF23rLkJoBfVNDcXwGNDl7vm09yM4WqBGTkm/OQ0ZCQ==}
 
   '@oxc-minify/binding-android-arm64@0.77.3':
     resolution: {integrity: sha512-9bGiDHSkPr6eaP4+/2DQerG+V69Ut4mezL1JtBTk54Iyc6tNsoHa9s+3wJSUHesXEgiHd/IxwuSXRtD9yC3VhQ==}
@@ -5134,6 +5140,9 @@ packages:
     peerDependencies:
       vue: ^3.2.0
 
+  vue-toasted@1.1.28:
+    resolution: {integrity: sha512-UUzr5LX51UbbiROSGZ49GOgSzFxaMHK6L00JV8fir/CYNJCpIIvNZ5YmS4Qc8Y2+Z/4VVYRpeQL2UO0G800Raw==}
+
   vue-tsc@3.0.1:
     resolution: {integrity: sha512-UvMLQD0hAGL1g/NfEQelnSVB4H5gtf/gz2lJKjMMwWNOUmSNyWkejwJagAxEbSjtV5CPPJYslOtoSuqJ63mhdg==}
     hasBin: true
@@ -6612,6 +6621,10 @@ snapshots:
       semver: 7.7.2
     transitivePeerDependencies:
       - magicast
+
+  '@nuxtjs/toast@3.3.1':
+    dependencies:
+      vue-toasted: 1.1.28
 
   '@oxc-minify/binding-android-arm64@0.77.3':
     optional: true
@@ -10871,6 +10884,8 @@ snapshots:
     dependencies:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.17(typescript@5.8.3)
+
+  vue-toasted@1.1.28: {}
 
   vue-tsc@3.0.1(typescript@5.8.3):
     dependencies:
