@@ -266,7 +266,7 @@
               <div>
                 <h3 class="font-bold mb-4 text-lg text-black">Select Date</h3>
                 <UCalendar
-                  size="xl"
+                  size="lg"
                   v-model="selectedDate"
                   :min="new Date()"
                   @dayclick="handleDayClick"
@@ -433,6 +433,45 @@ function getGroupIcon(name) {
   }
 }
 
+// Business hours for filtering slots
+function getBusinessHours(date) {
+  const dayOfWeek = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+  
+  // Thursday (4) has different hours: 11am-7pm
+  if (dayOfWeek === 4) {
+    return { start: 11, end: 19 } // 11am to 7pm
+  }
+  
+  // All other days: 9am-7pm
+  return { start: 9, end: 19 } // 9am to 7pm
+}
+
+// Filter slots based on business hours
+function filterSlotsByBusinessHours(slots, date) {
+  const businessHours = getBusinessHours(date)
+  
+  return slots.filter(slot => {
+    // Extract hour from slot time (assuming format like "9:00 AM", "2:30 PM", etc.)
+    const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (!timeMatch) return false
+    
+    let hour = parseInt(timeMatch[1])
+    const minute = parseInt(timeMatch[2])
+    const period = timeMatch[3].toUpperCase()
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hour !== 12) {
+      hour += 12
+    } else if (period === 'AM' && hour === 12) {
+      hour = 0
+    }
+    
+    // Check if slot is within business hours
+    const slotTime = hour + (minute / 60)
+    return slotTime >= businessHours.start && slotTime < businessHours.end
+  })
+}
+
 // Fetch groups for department radio
 onMounted(async () => {
   try {
@@ -524,13 +563,6 @@ watch(selectedService, async (serviceId) => {
   }
 })
 
-// Watch for date changes and fetch slots automatically when in DateTime step
-watch([selectedDate, currentStep], ([newDate, newStep]) => {
-  if (newStep === 'StepDateTime' && newDate && selectedService.value && selectedStaff.value) {
-    fetchSlots(newDate)
-  }
-})
-
 // Previous step logic
 function goToPreviousStep() {
   if (currentStep.value === 'StepService') {
@@ -578,6 +610,8 @@ function getServiceDuration(serviceId) {
 function handleDayClick(day) {
   selectedDate.value = day
   selectedSlot.value = '' // Reset selected slot when date changes
+  
+  // Only fetch slots if we have service and staff selected
   if (selectedService.value && selectedStaff.value) {
     fetchSlots(day)
   }
@@ -594,26 +628,38 @@ function fetchSlots(date) {
   loadingSlots.value = true
   
   const calendarId = selectedService.value
+  // If "any available staff" is selected, don't include userId in params
   const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
 
-  // Mountain Standard Time (UTC -7)
-  const msOffset = -7 * 60 * 60 * 1000
+  // MST is UTC-7 (Mountain Standard Time)
+  const mstOffset = -7 * 60 * 60 * 1000
   const start = new Date(date)
   start.setHours(0, 0, 0, 0)
   const end = new Date(date)
   end.setHours(23, 59, 59, 999)
 
-  const startDate = start.getTime() - msOffset
-  const endDate = end.getTime() - msOffset
+  const startDate = start.getTime() - mstOffset
+  const endDate = end.getTime() - mstOffset
 
-  fetch(`https://restyle-api.netlify.app/.netlify/functions/getAllstaffslot?calendarId=${calendarId}&userId=${userId}&startDate=${startDate}&endDate=${endDate}`)
+  // Build API URL - only include userId if it's not empty
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/getAllstaffslot?calendarId=${calendarId}&startDate=${startDate}&endDate=${endDate}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  fetch(apiUrl)
     .then(res => res.json())
     .then(data => {
-      console.log('Slots API response:', data) // Debug log
+      console.log('Slots API response:', data)
       const formatted = data.formattedSlots || {}
       const key = Object.keys(formatted)[0]
-      slotsForDate.value = key ? formatted[key] : []
-      console.log('Available slots:', slotsForDate.value) // Debug log
+      const allSlots = key ? formatted[key] : []
+      
+      // Filter slots by business hours
+      const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
+      slotsForDate.value = filteredSlots
+      
+      console.log('Available slots (filtered by business hours):', slotsForDate.value)
     })
     .catch((error) => {
       console.error('Error fetching slots:', error)
