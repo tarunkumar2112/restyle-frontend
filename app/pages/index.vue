@@ -370,7 +370,7 @@
                 </div>
                 
                 <!-- Time slots -->
-                <div class="space-y-4">
+                <div class="space-y-4 times-block">
                   <h3 class="font-bold text-xl text-black text-center">Available Times (MST)</h3>
                   <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm min-h-[400px]">
                     <div v-if="loadingSlots" class="space-y-3">
@@ -386,11 +386,11 @@
                           :color="selectedSlot === slot.time ? 'primary' : 'gray'"
                           :variant="selectedSlot === slot.time ? 'solid' : 'soft'"
                           size="sm"
-                          class="py-3 transition-all duration-200"
+                          class="py-3 transition-all duration-200 text-black border border-gray-500 rounded-[10px] justify-center"
                           @click="selectedSlot = slot.time"
                           :class="[
                             selectedSlot === slot.time ? 'bg-green-600 hover:bg-green-700 text-white ring-2 ring-green-300 shadow-sm' : '',
-                            slot.isPast ? 'opacity-40' : 'hover:shadow-sm'
+                            slot.isPast ? 'opacity-40 text-[#0000006e] border border-gray-500 rounded-[10px] justify-center' : 'hover:shadow-sm'
                           ]"
                           :disabled="slot.isPast"
                         >
