@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-white">
+  <div class="min-h-screen bg-white book-main">
     <div class="flex flex-col items-center gap-6 pt-12 pb-16 px-4">
       <div class="text-center mb-8">
         <h1 class="font-bold text-4xl mb-3 text-black">
@@ -10,10 +10,10 @@
         </p>
       </div>
       
-      <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <UStepper :items="steps" v-model="currentStep" class="p-8">
+      <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden department-block">
+        <UStepper :items="steps" v-model="currentStep" class="p-8 department-inner">
           <template #StepDepartment>
-            <div class="space-y-6">
+            <div class="space-y-6 department-inner-heading">
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Choose Your Department</h2>
                 <p class="text-gray-700">Select the service category that best fits your needs</p>
@@ -23,7 +23,7 @@
                 <div v-if="loadingGroups" class="space-y-4">
                   <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 6" :key="i" />
                 </div>
-                <div v-else class="grid gap-4 mb-8">
+                <div v-else class="grid gap-4 mb-8 same-block-content">
                   <div
                     v-for="item in departmentRadioItems"
                     :key="item.value"
@@ -56,7 +56,7 @@
                   </div>
                 </div>
                 
-                <div class="flex gap-4">
+                <div class="flex gap-4 same-btn-prev-next">
                   <UButton
                     type="button"
                     color="gray"
@@ -95,7 +95,7 @@
                 <div v-if="loadingServices" class="space-y-4">
                   <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 3" :key="i" />
                 </div>
-                <div v-else class="grid gap-4 mb-8">
+                <div v-else class="grid gap-4 mb-8 same-block-content">
                   <div
                     v-for="item in serviceRadioItems"
                     :key="item.value"
@@ -128,7 +128,7 @@
                   </div>
                 </div>
                 
-                <div class="flex gap-4">
+                <div class="flex gap-4 same-btn-prev-next">
                   <UButton
                     type="button"
                     color="gray"
@@ -182,7 +182,7 @@
                 
                 <div class="text-center mb-6">
                   <label class="block font-semibold mb-4 text-lg text-black">Select Number of Guests</label>
-                  <div class="flex justify-center">
+                  <div class="flex justify-center quantity-guest">
                     <UInputNumber
                       v-model="guestCount"
                       :min="1"
@@ -198,7 +198,7 @@
                 </div>
               </div>
               
-              <div class="flex gap-4 max-w-md mx-auto">
+              <div class="flex gap-4 max-w-md mx-auto same-btn-prev-next">
                 <UButton
                   type="button"
                   color="gray"
@@ -253,7 +253,7 @@
                 <div v-if="loadingStaff" class="space-y-4">
                   <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in staffRadioItems.length || 3" :key="i" />
                 </div>
-                <div v-else class="grid gap-4 mb-8">
+                <div v-else class="grid gap-4 mb-8 same-block-content">
                   <div
                     v-for="item in staffRadioItems"
                     :key="item.value"
@@ -289,7 +289,7 @@
                   </div>
                 </div>
                 
-                <div class="flex gap-4">
+                <div class="flex gap-4 same-btn-prev-next">
                   <UButton
                     type="button"
                     color="gray"
@@ -315,7 +315,7 @@
               </form>
             </div>
           </template>
-
+          
           <template #StepDateTime>
             <div class="space-y-6">
               <div class="text-center mb-8">
@@ -417,7 +417,7 @@
               </div>
               
               <!-- Navigation -->
-              <div class="flex gap-4 pt-6">
+              <div class="flex gap-4 pt-6 same-btn-prev-next">
                 <UButton
                   type="button"
                   color="gray"
@@ -445,7 +445,7 @@
           </template>
 
           <template #StepInformation>
-            <div class="space-y-6">
+            <div class="space-y-6 information-depaerment">
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Your Information</h2>
                 <p class="text-gray-700">Please provide your contact details to complete the booking</p>
@@ -454,7 +454,7 @@
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Contact Form -->
                 <div class="space-y-6">
-                  <form class="space-y-6" @submit.prevent="handleInformationSubmit">
+                  <form class="space-y-6 information-depaerment-form" @submit.prevent="handleInformationSubmit">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <UInput
@@ -519,7 +519,7 @@
                       size="xl"
                       :loading="bookingLoading"
                       :disabled="!isFormValid"
-                      class="w-full font-bold bg-green-600 hover:bg-green-700 text-white"
+                      class="w-full font-bold bg-green-600 hover:bg-green-700 text-white justify-center"
                     >
                       <UIcon name="i-lucide-calendar-check" class="mr-2" />
                       {{ bookingLoading ? 'Booking Your Appointment...' : 'Book Appointment' }}
@@ -573,11 +573,10 @@
               </div>
             </div>
           </template>
-
           <template #StepSuccess>
-            <div class="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6">
-              <div class="relative">
-                <div class="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center shadow-sm">
+            <div class="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6 same-btn-prev-next success-last">
+              <div class="relative success-last-mobile">
+                <div class="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center shadow-sm img-icon">
                   <UIcon name="i-lucide-check-circle" class="text-4xl text-white" />
                 </div>
                 <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center border border-green-200">
@@ -620,7 +619,7 @@
     </div>
 
     <!-- Enhanced Toast Container -->
-    <div class="fixed top-4 right-4 z-50 space-y-3">
+    <div class="fixed w-[400px] top-4 right-0 z-50 space-y-3">
       <div
         v-for="toast in toasts"
         :key="toast.id"
@@ -1323,6 +1322,7 @@ function resetBooking() {
 </script>
 
 <style scoped>
+
 /* Custom animations and transitions */
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -1350,4 +1350,108 @@ function resetBooking() {
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #cbd5e1;
 }
+.information-depaerment-form input {
+    background: transparent !important;
+    width: 100%;
+    border: 1px solid #00d492 !important;
+    box-shadow: none !important;
+}
+
+.information-depaerment-form textarea {
+    background: transparent;
+    width: 100% !important;
+     max-width: 100% !important;
+    border: 1px solid #00d492 !important;
+    box-shadow: none !important;
+}
+.text-highlighted {  background: transparent !important; }
+
+.information-depaerment-form  .inline-flex.items-center {
+    width: 100% !important;
+    justify-content: center;
+}
+
+.information-depaerment-form input,
+.information-depaerment-form textarea,
+.information-depaerment-form :deep(input),
+.information-depaerment-form :deep(textarea) {
+  background: transparent !important;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: none !important;
+  border: 1px solid #00d492 !important;
+}
+
+.information-depaerment-form :deep(.n-checkbox__label),
+.information-depaerment-form :deep(.u-checkbox__label),
+.information-depaerment-form :deep(label) {
+  color: #364a63 !important;
+}
+.department-inner :deep(.text-sm),
+.department-inner .text-sm {
+  color: #364a63;
+}
+.quantity-guest :deep(input) {
+  background: #effdf5 !important;
+  color: #1d293d !important;
+  border-radius: 50px !important;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px !important;
+  border: 1px solid #1d293d !important;
+  font-weight: 600 !important;
+}
+
+.quantity-guest :deep(.iconify) {
+  background: #1d293d !important;
+  color: #fff !important; 
+  border-radius: 50% !important;
+}
+
+:deep(.same-btn-prev-next) {
+  justify-content: space-between;
+}
+
+:deep(.same-btn-prev-next button) {
+  width: max-content !important;
+  max-width: max-content !important;
+  opacity: 1 !important;
+  color:#fff !important;
+    background: #00dc82;
+    border: 1px solid #00dc82;
+}
+:deep(.same-btn-prev-next button:hover) {
+  background: transparent;
+  color: #00dc82 !important;
+  cursor:pointer;
+}
+
+
+
+@media only screen and (max-width: 767px) {
+:deep(.success-last .img-icon) {
+  width: 50px;
+  height: 50px;
+}
+
+:deep(.success-last .img-icon .text-white) {
+  width: 24px;
+  height: 24px;
+}
+.flex.gap-4.flex-col.p-8.department-inner {
+    padding: 30px 15px;
+}
+
+:deep(.department-inner .flex .group) {
+  display: none !important;
+}
+:deep(.same-block-content .transition-all) {
+  font-size: 16px !important;
+  padding: 12px;
+}
+
+:deep(.same-block-content .transition-all span) {
+  font-size: 16px;
+}
+
+}
+
 </style>
