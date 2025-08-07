@@ -4,17 +4,18 @@
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
 
-  --color-green-50: #effdf5;
-  --color-green-100: #d9fbe8;
-  --color-green-200: #b3f5d1;
-  --color-green-300: #75edae;
-  --color-green-400: #00dc82;
-  --color-green-500: #00c16a;
-  --color-green-600: #00a155;
-  --color-green-700: #007f45;
-  --color-green-800: #016538;
-  --color-green-900: #0a5331;
-  --color-green-950: #052e16;
+--color-custom-50:  #fcecee;
+--color-custom-100: #f8d1d6;
+--color-custom-200: #f0a3ad;
+--color-custom-300: #e47084;
+--color-custom-400: #cf3e58;
+--color-custom-500: #b9243f;
+--color-custom-600: #951a30;
+--color-custom-700: #751a29; 
+--color-custom-800: #5e1623;
+--color-custom-900: #4a121c;
+--color-custom-950: #2a060c;
+
 }
 
 @theme light {
@@ -24,4 +25,28 @@
   --secondary: #effdf5;
   --font-sans: 'Public Sans', sans-serif;
   /* Add more light theme variables as needed */
+}
+.bg-primary,
+.bg-red-700 {background-color: var(--color-custom-700);}
+.text-primary,
+.text-red-700 {color: var(--color-custom-700);}
+.border-red-700{border-color:var(--color-custom-700);}
+.hover\:border-red-300 {
+    &:hover {@media (hover: hover) {border-color: var(--color-custom-300);}}
+}
+.group-data-\[state\=completed\]\:bg-primary {
+    &:is(:where(.group)[data-state="completed"] *) {background-color: var(--color-custom-700);}
+}
+.group-data-\[state\=active\]\:bg-primary {
+  &:is(:where(.group)[data-state="active"] *) {background-color: var(--color-custom-700);}
+}
+.data-today\:not-data-\[selected\]\:text-primary {
+    &[data-today] {&:not(*[data-selected]) {color: var(--color-custom-700);}}
+}
+.data-\[selected\]\:bg-primary {
+    &[data-selected] {background-color: var(--color-custom-700);}
+}
+
+.hover\:not-data-\[selected\]\:bg-primary\/20:hover:not([data-selected]) {
+  @media (hover: hover) {background-color: var(--color-custom-100);} 
 }

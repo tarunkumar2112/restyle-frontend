@@ -31,18 +31,18 @@
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedDepartment === item.value
-                        ? 'bg-green-50 text-black border-green-500 shadow-sm'
-                        : 'bg-white text-black border-gray-200 hover:border-green-300'
+                        ? 'bg-red-50 text-black border-red-700 shadow-sm'
+                        : 'bg-white text-black border-gray-200 hover:border-red-300'
                     ]"
                   >
                     <div class="flex items-center gap-4">
                       <div :class="[
                         'p-3 rounded-full',
-                        selectedDepartment === item.value ? 'bg-green-100' : 'bg-gray-100'
+                        selectedDepartment === item.value ? 'bg-red-100' : 'bg-gray-100'
                       ]">
                         <UIcon :name="item.icon || 'i-lucide-user-female'" :class="[
                           'text-2xl',
-                          selectedDepartment === item.value ? 'text-green-600' : 'text-gray-600'
+                          selectedDepartment === item.value ? 'text-red-700' : 'text-gray-600'
                         ]" />
                       </div>
                       <div>
@@ -50,7 +50,7 @@
                         <span class="text-sm text-gray-600">{{ item.description }}</span>
                       </div>
                     </div>
-                    <div v-if="selectedDepartment === item.value" class="text-green-600">
+                    <div v-if="selectedDepartment === item.value" class="text-red-700">
                       <UIcon name="i-lucide-check-circle" class="text-2xl" />
                     </div>
                   </div>
@@ -74,7 +74,7 @@
                     color="primary"
                     size="lg"
                     :disabled="!selectedDepartment || loadingGroups"
-                    class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    class="flex-1 bg-red-700 hover:bg-red-700 text-white"
                   >
                     Continue
                     <UIcon name="i-lucide-arrow-right" class="ml-2" />
@@ -103,18 +103,18 @@
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedService === item.value
-                        ? 'bg-green-50 text-black border-green-500 shadow-sm'
-                        : 'bg-white text-black border-gray-200 hover:border-green-300'
+                        ? 'bg-red-50 text-black border-red-700 shadow-sm'
+                        : 'bg-white text-black border-gray-200 hover:border-red-300'
                     ]"
                   >
                     <div class="flex items-center gap-4">
                       <div :class="[
                         'p-3 rounded-full',
-                        selectedService === item.value ? 'bg-green-100' : 'bg-gray-100'
+                        selectedService === item.value ? 'bg-red-100' : 'bg-gray-100'
                       ]">
                         <UIcon name="i-lucide-scissors" :class="[
                           'text-2xl',
-                          selectedService === item.value ? 'text-green-600' : 'text-gray-600'
+                          selectedService === item.value ? 'text-red-700' : 'text-gray-600'
                         ]" />
                       </div>
                       <div>
@@ -122,7 +122,7 @@
                         <span class="text-sm text-gray-600">{{ item.description }}</span>
                       </div>
                     </div>
-                    <div v-if="selectedService === item.value" class="text-green-600">
+                    <div v-if="selectedService === item.value" class="text-red-700">
                       <UIcon name="i-lucide-check-circle" class="text-2xl" />
                     </div>
                   </div>
@@ -145,7 +145,7 @@
                     color="primary"
                     size="lg"
                     :disabled="!selectedService || loadingServices"
-                    class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    class="flex-1 bg-red-700 hover:bg-red-700 text-white"
                   >
                     Continue
                     <UIcon name="i-lucide-arrow-right" class="ml-2" />
@@ -173,8 +173,8 @@
                         {{ selectedServiceObj?.description }}
                       </div>
                     </div>
-                    <div class="flex items-center gap-3 bg-green-50 rounded-full px-4 py-2 border border-green-200">
-                      <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-green-600" />
+                    <div class="flex items-center gap-3 bg-red-50 rounded-full px-4 py-2 border border-red-200">
+                      <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
                       <span class="font-bold text-xl text-black">{{ guestCount }}</span>
                     </div>
                   </div>
@@ -215,7 +215,7 @@
                   color="primary"
                   size="lg"
                   :disabled="!guestCount"
-                  class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  class="flex-1 bg-red-700 hover:bg-red-700 text-white"
                   @click="goToNextStep"
                 >
                   Continue
@@ -236,14 +236,14 @@
                 <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
                   <div class="font-bold text-lg mb-1 text-black">Service</div>
                   <div class="text-gray-700">{{ selectedServiceObj?.label }}</div>
-                  <div class="text-sm text-green-600 font-semibold mt-1">
+                  <div class="text-sm text-red-700 font-semibold mt-1">
                     Duration: {{ getServiceDuration(selectedService) }} mins
                   </div>
                 </div>
                 <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
                   <div class="font-bold text-lg mb-1 text-black">Guests</div>
                   <div class="flex items-center justify-center gap-2">
-                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-green-600" />
+                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
                     <span class="font-bold text-xl text-black">{{ guestCount }}</span>
                   </div>
                 </div>
@@ -261,29 +261,29 @@
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedStaff === item.value
-                        ? 'bg-green-50 text-black border-green-500 shadow-sm'
-                        : 'bg-white text-black border-gray-200 hover:border-green-300'
+                        ? 'bg-red-50 text-black border-red-700 shadow-sm'
+                        : 'bg-white text-black border-gray-200 hover:border-red-300'
                     ]"
                   >
                     <div class="flex items-center gap-4">
                       <div :class="[
                         'p-3 rounded-full',
-                        selectedStaff === item.value ? 'bg-green-100' : 'bg-gray-100'
+                        selectedStaff === item.value ? 'bg-red-100' : 'bg-gray-100'
                       ]">
                         <UIcon :name="item.icon" :class="[
                           'text-2xl',
-                          selectedStaff === item.value ? 'text-green-600' : 'text-gray-600'
+                          selectedStaff === item.value ? 'text-red-700' : 'text-gray-600'
                         ]" />
                       </div>
                       <div>
                         <span class="text-xl font-semibold text-black">{{ item.label }}</span>
                         <span v-if="item.badge" :class="[
                           'ml-3 px-3 py-1 rounded-full text-xs font-medium',
-                          selectedStaff === item.value ? 'bg-green-100 text-green-700' : 'bg-green-500 text-white'
+                          selectedStaff === item.value ? 'bg-red-100 text-red-700' : 'bg-red-500 text-white'
                         ]">{{ item.badge }}</span>
                       </div>
                     </div>
-                    <div v-if="selectedStaff === item.value" class="text-green-600">
+                    <div v-if="selectedStaff === item.value" class="text-red-700">
                       <UIcon name="i-lucide-check-circle" class="text-2xl" />
                     </div>
                   </div>
@@ -306,7 +306,7 @@
                     color="primary"
                     size="lg"
                     :disabled="!selectedStaff || loadingStaff"
-                    class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    class="flex-1 bg-red-700 hover:bg-red-700 text-white"
                   >
                     Continue
                     <UIcon name="i-lucide-arrow-right" class="ml-2" />
@@ -327,20 +327,20 @@
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
                   <div class="font-bold text-lg mb-1 text-black">Service</div>
-                  <div class="text-green-600 font-semibold">
+                  <div class="text-red-700 font-semibold">
                     {{ selectedServiceObj?.label || 'No service selected' }}
                   </div>
                 </div>
                 <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
                   <div class="font-bold text-lg mb-1 text-black">Guests</div>
                   <div class="flex items-center justify-center gap-2">
-                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-green-600" />
+                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
                     <span class="font-bold text-xl text-black">{{ guestCount }}</span>
                   </div>
                 </div>
                 <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
                   <div class="font-bold text-lg mb-1 text-black">Stylist</div>
-                  <div class="text-green-600 font-semibold text-center">{{ selectedStaffObj?.label || 'Any available' }}</div>
+                  <div class="text-red-700 font-semibold text-center">{{ selectedStaffObj?.label || 'Any available' }}</div>
                 </div>
               </div>
 
@@ -364,7 +364,7 @@
                       :min-date="today(getLocalTimeZone())"
                     />
                   </div>
-                  <div v-if="selectedCalendarDate" class="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div v-if="selectedCalendarDate" class="text-center p-3 bg-red-50 rounded-lg border border-red-200">
                     <span class="text-black font-semibold">{{ formatCalendarDate(selectedCalendarDate) }}</span>
                   </div>
                 </div>
@@ -389,7 +389,7 @@
                           class="py-3 transition-all duration-200 text-black border border-gray-500 rounded-[10px] justify-center"
                           @click="selectedSlot = slot.time"
                           :class="[
-                            selectedSlot === slot.time ? 'bg-green-600 hover:bg-green-700 text-white ring-2 ring-green-300 shadow-sm' : '',
+                            selectedSlot === slot.time ? 'bg-red-700 hover:bg-red-700 text-white ring-2 ring-red-300 shadow-sm' : '',
                             slot.isPast ? 'opacity-40 text-[#0000006e] border border-gray-500 rounded-[10px] justify-center' : 'hover:shadow-sm'
                           ]"
                           :disabled="slot.isPast"
@@ -407,10 +407,10 @@
                     </div>
                   </div>
                   
-                  <div v-if="selectedSlot" class="p-4 bg-green-50 rounded-xl border border-green-200">
+                  <div v-if="selectedSlot" class="p-4 bg-red-50 rounded-xl border border-red-200">
                     <div class="text-center">
                       <div class="font-bold text-black text-lg">Selected Time</div>
-                      <div class="text-green-600 font-semibold">{{ selectedSlot }} MST</div>
+                      <div class="text-red-700 font-semibold">{{ selectedSlot }} MST</div>
                     </div>
                   </div>
                 </div>
@@ -434,7 +434,7 @@
                   color="primary"
                   size="lg"
                   :disabled="!selectedSlot"
-                  class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  class="flex-1 bg-red-700 hover:bg-red-700 text-white"
                   @click="goToNextStepDateTime"
                 >
                   Continue
@@ -519,7 +519,7 @@
                       size="xl"
                       :loading="bookingLoading"
                       :disabled="!isFormValid"
-                      class="w-full font-bold bg-green-600 hover:bg-green-700 text-white justify-center"
+                      class="w-full font-bold bg-red-700 hover:bg-red-700 text-white justify-center"
                     >
                       <UIcon name="i-lucide-calendar-check" class="mr-2" />
                       {{ bookingLoading ? 'Booking Your Appointment...' : 'Book Appointment' }}
@@ -535,17 +535,17 @@
                     <div class="p-6 rounded-xl border border-gray-200 bg-white">
                       <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                          <UIcon name="i-lucide-calendar" class="text-xl text-green-600" />
+                          <UIcon name="i-lucide-calendar" class="text-xl text-red-700" />
                           <span class="font-semibold text-black">
                             {{ formatCalendarDate(selectedCalendarDate) }}
                           </span>
                         </div>
                         <div class="flex items-center gap-3">
-                          <UIcon name="i-lucide-clock" class="text-xl text-green-600" />
+                          <UIcon name="i-lucide-clock" class="text-xl text-red-700" />
                           <span class="font-semibold text-black">{{ selectedSlot }} MST</span>
                         </div>
                         <div class="flex items-center gap-3">
-                          <UIcon name="i-lucide-hourglass" class="text-xl text-green-600" />
+                          <UIcon name="i-lucide-hourglass" class="text-xl text-red-700" />
                           <span class="text-gray-700">{{ getServiceDuration(selectedService) }} minutes</span>
                         </div>
                         <div class="flex items-center gap-3">
@@ -559,11 +559,11 @@
                       <div class="space-y-3">
                         <div class="font-bold text-lg text-black">{{ selectedServiceObj?.label }}</div>
                         <div class="flex items-center gap-3">
-                          <UIcon name="i-lucide-user" class="text-xl text-green-600" />
+                          <UIcon name="i-lucide-user" class="text-xl text-red-700" />
                           <span class="text-gray-700">with {{ selectedStaffObj?.label }}</span>
                         </div>
                         <div class="flex items-center gap-3">
-                          <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-xl text-green-600" />
+                          <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-xl text-red-700" />
                           <span class="text-gray-700">{{ guestCount }} {{ guestCount === 1 ? 'person' : 'people' }}</span>
                         </div>
                       </div>
@@ -576,11 +576,11 @@
           <template #StepSuccess>
             <div class="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6 same-btn-prev-next success-last">
               <div class="relative success-last-mobile">
-                <div class="w-24 h-24 bg-green-600 rounded-full flex items-center justify-center shadow-sm img-icon">
+                <div class="w-24 h-24 bg-red-700 rounded-full flex items-center justify-center shadow-sm img-icon">
                   <UIcon name="i-lucide-check-circle" class="text-4xl text-white" />
                 </div>
-                <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center border border-green-200">
-                  <UIcon name="i-lucide-sparkles" class="text-lg text-green-600" />
+                <div class="absolute -top-2 -right-2 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center border border-red-200">
+                  <UIcon name="i-lucide-sparkles" class="text-lg text-red-700" />
                 </div>
               </div>
               
@@ -592,7 +592,7 @@
                 </p>
               </div>
               
-              <div class="p-6 bg-green-50 rounded-xl border border-green-200 max-w-md">
+              <div class="p-6 bg-red-50 rounded-xl border border-red-200 max-w-md">
                 <div class="space-y-2">
                   <div class="font-semibold text-black">What's Next?</div>
                   <div class="text-sm text-gray-700 space-y-1">
@@ -607,7 +607,7 @@
                 color="primary"
                 size="lg"
                 @click="resetBooking"
-                class="mt-6 bg-green-600 hover:bg-green-700 text-white"
+                class="mt-6 bg-red-700 hover:bg-red-700 text-white"
               >
                 <UIcon name="i-lucide-plus" class="mr-2" />
                 Book Another Appointment
@@ -630,7 +630,7 @@
       >
         <div :class="[
           'w-1 flex-shrink-0',
-          toast.type === 'success' ? 'bg-green-500' : '',
+          toast.type === 'success' ? 'bg-red-500' : '',
           toast.type === 'error' ? 'bg-red-500' : '',
           toast.type === 'warning' ? 'bg-yellow-500' : '',
           toast.type === 'info' ? 'bg-blue-500' : ''
@@ -642,7 +642,7 @@
                 :name="getToastIcon(toast.type)"
                 :class="[
                   'h-5 w-5',
-                  toast.type === 'success' ? 'text-green-500' : '',
+                  toast.type === 'success' ? 'text-red-500' : '',
                   toast.type === 'error' ? 'text-red-500' : '',
                   toast.type === 'warning' ? 'text-yellow-500' : '',
                   toast.type === 'info' ? 'text-blue-500' : ''
@@ -1353,7 +1353,7 @@ function resetBooking() {
 .information-depaerment-form input {
     background: transparent !important;
     width: 100%;
-    border: 1px solid #00d492 !important;
+    border: 1px solid #751A29 !important;
     box-shadow: none !important;
 }
 
@@ -1361,7 +1361,7 @@ function resetBooking() {
     background: transparent;
     width: 100% !important;
      max-width: 100% !important;
-    border: 1px solid #00d492 !important;
+    border: 1px solid #751A29 !important;
     box-shadow: none !important;
 }
 .text-highlighted {  background: transparent !important; }
@@ -1379,7 +1379,7 @@ function resetBooking() {
   width: 100%;
   max-width: 100%;
   box-shadow: none !important;
-  border: 1px solid #00d492 !important;
+  border: 1px solid #751A29 !important;
 }
 
 .information-depaerment-form :deep(.n-checkbox__label),
@@ -1392,7 +1392,7 @@ function resetBooking() {
   color: #364a63;
 }
 .quantity-guest :deep(input) {
-  background: #effdf5 !important;
+  background: #fef2f2 !important;
   color: #1d293d !important;
   border-radius: 50px !important;
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px !important;
@@ -1415,12 +1415,12 @@ function resetBooking() {
   max-width: max-content !important;
   opacity: 1 !important;
   color:#fff !important;
-    background: #00dc82;
-    border: 1px solid #00dc82;
+    background: #751A29;
+    border: 1px solid #751A29;
 }
 :deep(.same-btn-prev-next button:hover) {
   background: transparent;
-  color: #00dc82 !important;
+  color: #751A29 !important;
   cursor:pointer;
 }
 
