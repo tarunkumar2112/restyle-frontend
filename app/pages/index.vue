@@ -11,7 +11,7 @@
       </div>
       
       <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden department-block">
-        <UStepper :items="steps" v-model="currentStep" class="p-8 department-inner">
+        <UStepper disabled :items="steps" v-model="currentStep" class="p-8 department-inner">
           <template #StepDepartment>
             <div class="space-y-6 department-inner-heading">
               <div class="text-center mb-8">
@@ -993,13 +993,36 @@ watch(selectedService, async (serviceId) => {
   }
 })
 
-// Watch for calendar date changes
+// --- Preselect today's date on mount ---
+onMounted(async () => {
+  // Preselect today's date
+  selectedCalendarDate.value = today(getLocalTimeZone())
+})
+
+// Watch for step change to StepDateTime to fetch slots for today
+watch(currentStep, (step) => {
+  if (
+    step === 'StepDateTime' &&
+    selectedCalendarDate.value &&
+    selectedService.value &&
+    selectedStaff.value
+  ) {
+    // Fetch slots for the preselected date
+    const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
+    fetchSlots(jsDate)
+  }
+})
+
+// Watch for calendar date changes and refresh slots if all required selections are made
 watch(selectedCalendarDate, (newDate) => {
-  console.log('Calendar date changed:', newDate)
   selectedSlot.value = ''
-  if (newDate && selectedService.value && selectedStaff.value) {
+  if (
+    newDate &&
+    currentStep.value === 'StepDateTime' &&
+    selectedService.value &&
+    selectedStaff.value
+  ) {
     const jsDate = calendarDateToJSDate(newDate)
-    console.log('Converted JS Date:', jsDate)
     fetchSlots(jsDate)
   } else {
     slotsForDate.value = []
@@ -1278,7 +1301,6 @@ function selectStaff(value) {
 </script>
 
 <style scoped>
-
 /* Custom animations and transitions */
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -1380,7 +1402,27 @@ function selectStaff(value) {
   cursor:pointer;
 }
 
-
+/* Stepper color scheme overrides */
+:deep(.department-inner .u-stepper .u-stepper-item) {
+  background: transparent !important;
+}
+:deep(.department-inner .u-stepper .u-stepper-item .u-stepper-icon) {
+  background: #374151 !important; /* Inactive background */
+  color: #fff !important;         /* Inactive icon color */
+  border: none !important;
+  transition: background 0.2s;
+}
+:deep(.department-inner .u-stepper .u-stepper-item.is-active .u-stepper-icon) {
+  background: #751e2b !important; /* Active background */
+  color: #fff !important;         /* Active icon color */
+}
+:deep(.department-inner .u-stepper .u-stepper-item .u-stepper-title) {
+  color: #374151 !important;      /* Inactive text */
+}
+:deep(.department-inner .u-stepper .u-stepper-item.is-active .u-stepper-title) {
+  color: #751e2b !important;      /* Active text */
+  font-weight: bold;
+}
 
 @media only screen and (max-width: 767px) {
 :deep(.success-last .img-icon) {
