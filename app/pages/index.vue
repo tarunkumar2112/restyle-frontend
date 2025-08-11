@@ -27,7 +27,7 @@
                   <div
                     v-for="item in departmentRadioItems"
                     :key="item.value"
-                    @click="selectedDepartment = item.value"
+                    @click="selectDepartment(item.value)"
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedDepartment === item.value
@@ -99,7 +99,7 @@
                   <div
                     v-for="item in serviceRadioItems"
                     :key="item.value"
-                    @click="selectedService = item.value"
+                    @click="selectService(item.value)"
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedService === item.value
@@ -155,83 +155,14 @@
             </div>
           </template>
 
-          <template #StepGuests>
-            <div class="space-y-6">
-              <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-black mb-2">Number of Guests</h2>
-                <p class="text-gray-700">How many people will be joining you for this service?</p>
-              </div>
-              
-              <div class="max-w-md mx-auto">
-                <div class="mb-6 p-6 rounded-xl border-2 border-gray-200 bg-white">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="font-bold text-xl mb-1 text-black">
-                        {{ selectedServiceObj?.label || 'No service selected' }}
-                      </div>
-                      <div class="text-gray-600 text-sm">
-                        {{ selectedServiceObj?.description }}
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-3 bg-red-50 rounded-full px-4 py-2 border border-red-200">
-                      <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
-                      <span class="font-bold text-xl text-black">{{ guestCount }}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="text-center mb-6">
-                  <label class="block font-semibold mb-4 text-lg text-black">Select Number of Guests</label>
-                  <div class="flex justify-center quantity-guest">
-                    <UInputNumber
-                      v-model="guestCount"
-                      :min="1"
-                      :max="10"
-                      size="xl"
-                      class="w-48"
-                    />
-                  </div>
-                </div>
-                
-                <div class="text-center text-lg font-medium text-black bg-white rounded-lg p-4 border border-gray-200">
-                  You{{ guestCount > 1 ? ' and ' + (guestCount - 1) + ' guest' + (guestCount > 2 ? 's' : '') : '' }}
-                </div>
-              </div>
-              
-              <div class="flex gap-4 max-w-md mx-auto same-btn-prev-next">
-                <UButton
-                  type="button"
-                  color="gray"
-                  variant="soft"
-                  size="lg"
-                  class="flex-1"
-                  @click="goToPreviousStep"
-                >
-                  <UIcon name="i-lucide-arrow-left" class="mr-2" />
-                  Previous
-                </UButton>
-                <UButton
-                  type="button"
-                  color="primary"
-                  size="lg"
-                  :disabled="!guestCount"
-                  class="flex-1 bg-red-700 hover:bg-red-700 text-white"
-                  @click="goToNextStep"
-                >
-                  Continue
-                  <UIcon name="i-lucide-arrow-right" class="ml-2" />
-                </UButton>
-              </div>
-            </div>
-          </template>
-
           <template #StepStaff>
             <div class="space-y-6">
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Choose Your Stylist</h2>
                 <p class="text-gray-700">Select your preferred stylist or let us choose the best available</p>
               </div>
-              
+
+              <!-- Summary cards -->
               <div class="grid grid-cols-2 gap-6 mb-8 max-w-lg mx-auto">
                 <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
                   <div class="font-bold text-lg mb-1 text-black">Service</div>
@@ -240,15 +171,31 @@
                     Duration: {{ getServiceDuration(selectedService) }} mins
                   </div>
                 </div>
-                <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
+                <!-- Guests Card with Guest Count Input -->
+                <div class="text-center p-4 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
                   <div class="font-bold text-lg mb-1 text-black">Guests</div>
-                  <div class="flex items-center justify-center gap-2">
+                  <div class="flex items-center justify-center gap-2 mb-2">
                     <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
                     <span class="font-bold text-xl text-black">{{ guestCount }}</span>
                   </div>
+                  <div class="w-full">
+                    <label class="block font-semibold mb-2 text-black text-sm">Select Number of Guests</label>
+                    <div class="flex justify-center quantity-guest">
+                      <UInputNumber
+                        v-model="guestCount"
+                        :min="1"
+                        :max="10"
+                        size="md"
+                        class="w-28"
+                      />
+                    </div>
+                    <div class="text-center text-xs font-medium text-black bg-white rounded-lg p-2 border border-gray-200 mt-2">
+                      You{{ guestCount > 1 ? ' and ' + (guestCount - 1) + ' guest' + (guestCount > 2 ? 's' : '') : '' }}
+                    </div>
+                  </div>
                 </div>
               </div>
-              
+
               <form @submit.prevent="handleStaffSubmit">
                 <div v-if="loadingStaff" class="space-y-4">
                   <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in staffRadioItems.length || 3" :key="i" />
@@ -257,7 +204,7 @@
                   <div
                     v-for="item in staffRadioItems"
                     :key="item.value"
-                    @click="selectedStaff = item.value"
+                    @click="selectStaff(item.value)"
                     :class="[
                       'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedStaff === item.value
@@ -832,12 +779,6 @@ const steps = [
     slot: 'StepService'
   },
   {
-    title: 'Guests',
-    icon: 'i-lucide-users',
-    value: 'StepGuests',
-    slot: 'StepGuests'
-  },
-  {
     title: 'Staff',
     icon: 'i-lucide-user-check',
     value: 'StepStaff',
@@ -1069,10 +1010,8 @@ watch(selectedCalendarDate, (newDate) => {
 function goToPreviousStep() {
   if (currentStep.value === 'StepService') {
     currentStep.value = 'StepDepartment'
-  } else if (currentStep.value === 'StepGuests') {
-    currentStep.value = 'StepService'
   } else if (currentStep.value === 'StepStaff') {
-    currentStep.value = 'StepGuests'
+    currentStep.value = 'StepService'
   } else if (currentStep.value === 'StepDateTime') {
     currentStep.value = 'StepStaff'
   }
@@ -1089,8 +1028,8 @@ function handleDepartmentSubmit() {
 // Handle service submit
 function handleServiceSubmit() {
   if (selectedService.value) {
-    currentStep.value = 'StepGuests'
-    showToast('Service Selected', 'Perfect! Now specify the number of guests.', 'success')
+    currentStep.value = 'StepStaff'
+    showToast('Service Selected', 'Perfect! Now specify the number of guests and choose your stylist.', 'success')
   }
 }
 
@@ -1098,13 +1037,6 @@ function handleStaffSubmit() {
   if (selectedStaff.value) {
     currentStep.value = 'StepDateTime'
     showToast('Staff Selected', 'Excellent! Now choose your preferred date and time.', 'success')
-  }
-}
-
-function goToNextStep() {
-  if (currentStep.value === 'StepGuests' && guestCount.value) {
-    currentStep.value = 'StepStaff'
-    showToast('Guest Count Set', 'Great! Now choose your preferred stylist.', 'success')
   }
 }
 
@@ -1319,6 +1251,30 @@ function resetBooking() {
   
   showToast('Ready for New Booking', 'You can now book another appointment.', 'info')
 }
+
+// --- Add these methods for instant step change ---
+function selectDepartment(value) {
+  selectedDepartment.value = value
+  // Wait for UI update, then move to next step
+  setTimeout(() => {
+    handleDepartmentSubmit()
+  }, 0)
+}
+
+function selectService(value) {
+  selectedService.value = value
+  setTimeout(() => {
+    handleServiceSubmit()
+  }, 0)
+}
+
+function selectStaff(value) {
+  selectedStaff.value = value
+  setTimeout(() => {
+    handleStaffSubmit()
+  }, 0)
+}
+// --- end ---
 </script>
 
 <style scoped>
