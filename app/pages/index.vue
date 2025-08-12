@@ -162,8 +162,9 @@
                 <p class="text-gray-700">Select your preferred stylist or let us choose the best available</p>
               </div>
 
-              <!-- Summary cards -->
-              <div class="grid grid-cols-2 gap-6 mb-8 max-w-lg mx-auto">
+              <!-- Summary cards: Service | Guests | Staff -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 max-w-3xl mx-auto">
+                <!-- Service Card -->
                 <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
                   <div class="font-bold text-lg mb-1 text-black">Service</div>
                   <div class="text-gray-700">{{ selectedServiceObj?.label }}</div>
@@ -171,14 +172,24 @@
                     Duration: {{ getServiceDuration(selectedService) }} mins
                   </div>
                 </div>
-                <!-- Guests Card with Guest Count Input -->
+                <!-- Guests Card with Add Guest logic -->
                 <div class="text-center p-4 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
                   <div class="font-bold text-lg mb-1 text-black">Guests</div>
-                  <div class="flex items-center justify-center gap-2 mb-2">
-                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
-                    <span class="font-bold text-xl text-black">{{ guestCount }}</span>
+                  <div v-if="!showGuestInput" class="flex flex-col items-center">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                      <UIcon name="i-lucide-user" class="text-2xl text-red-700" />
+                      <span class="font-bold text-xl text-black">1</span>
+                    </div>
+                    <UButton
+                      size="sm"
+                      color="primary"
+                      class="bg-red-700 hover:bg-red-700 text-white mt-2"
+                      @click="showGuestInput = true"
+                    >
+                      <UIcon name="i-lucide-plus" class="mr-1" /> Add Guest
+                    </UButton>
                   </div>
-                  <div class="w-full">
+                  <div v-else class="w-full">
                     <label class="block font-semibold mb-2 text-black text-sm">Select Number of Guests</label>
                     <div class="flex justify-center quantity-guest">
                       <UInputNumber
@@ -192,7 +203,21 @@
                     <div class="text-center text-xs font-medium text-black bg-white rounded-lg p-2 border border-gray-200 mt-2">
                       You{{ guestCount > 1 ? ' and ' + (guestCount - 1) + ' guest' + (guestCount > 2 ? 's' : '') : '' }}
                     </div>
+                    <UButton
+                      size="xs"
+                      color="gray"
+                      variant="soft"
+                      class="mt-2"
+                      @click="resetGuestInput"
+                    >
+                      Cancel
+                    </UButton>
                   </div>
+                </div>
+                <!-- Staff Card -->
+                <div class="text-center p-4 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
+                  <div class="font-bold text-lg mb-1 text-black">Stylist</div>
+                  <div class="text-red-700 font-semibold text-center">{{ selectedStaffObj?.label || 'Any available' }}</div>
                 </div>
               </div>
 
@@ -292,12 +317,7 @@
               </div>
 
               <!-- Timezone indicator -->
-              <div class="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div class="flex items-center justify-center gap-3">
-                  <UIcon name="i-lucide-globe" class="text-gray-600 text-xl" />
-                  <span class="font-medium text-black">All times shown in MST (UTC-7)</span>
-                </div>
-              </div>
+           
               
               <!-- Calendar and slots -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -495,10 +515,7 @@
                           <UIcon name="i-lucide-hourglass" class="text-xl text-red-700" />
                           <span class="text-gray-700">{{ getServiceDuration(selectedService) }} minutes</span>
                         </div>
-                        <div class="flex items-center gap-3">
-                          <UIcon name="i-lucide-globe" class="text-xl text-gray-600" />
-                          <span class="text-gray-700">Mountain Standard Time</span>
-                        </div>
+                       
                       </div>
                     </div>
                     
@@ -616,7 +633,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 
 // Custom Toast System
@@ -678,6 +695,12 @@ const serviceRadioItems = ref([])
 const loadingServices = ref(false)
 
 const guestCount = ref(1)
+const showGuestInput = ref(false)
+
+function resetGuestInput() {
+  guestCount.value = 1
+  showGuestInput.value = false
+}
 
 const selectedServiceObj = computed(() =>
   serviceRadioItems.value.find(item => item.value === selectedService.value)
@@ -696,6 +719,10 @@ const selectedCalendarDate = ref(null)
 const slotsForDate = ref([])
 const selectedSlot = ref('')
 const loadingSlots = ref(false)
+
+const activeSlots = ref({})
+const activeDay = ref('')
+const calendarId = ref('')
 
 // Form validation
 const validationErrors = ref({
@@ -993,39 +1020,225 @@ watch(selectedService, async (serviceId) => {
   }
 })
 
+// Calendar and slots
+// const selectedCalendarDate = ref(null)
+// const slotsForDate = ref([])
+// const selectedSlot = ref('')
+// const loadingSlots = ref(false)
+
+// const activeSlots = ref({})
+// const activeDay = ref('')
+// const calendarId = ref('')
+
+async function fetchActiveSlots() {
+  if (!selectedService.value) {
+    console.log('No service selected for active slots fetch')
+    slotsForDate.value = []
+    return
+  }
+
+  console.log('Fetching active slots for service:', selectedService.value)
+  
+  selectedSlot.value = ''
+  slotsForDate.value = []
+  loadingSlots.value = true
+
+  const serviceId = selectedService.value
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+
+  // Build API URL for active slots
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/getactiveslot?calendarId=${serviceId}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  console.log('Active Slots API URL:', apiUrl)
+
+  try {
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    console.log('Active Slots API response:', data)
+
+    if (data.slots && data.activeDay && data.calendarId) {
+      activeSlots.value = data.slots
+      activeDay.value = data.activeDay
+      calendarId.value = data.calendarId
+
+      // Get the first available date from slots
+      const availableDates = Object.keys(data.slots)
+      if (availableDates.length > 0) {
+        const firstAvailableDate = availableDates[0]
+        
+        const [year, month, day] = firstAvailableDate.split('-').map(Number)
+        selectedCalendarDate.value = new CalendarDate(year, month, day)
+        
+        const slotsForSelectedDate = data.slots[firstAvailableDate] || []
+        const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+          time: slot,
+          isPast: isSlotInPastMST(slot, firstAvailableDate)
+        }))
+
+        slotsForDate.value = slotsWithStatus
+        console.log('Active slots loaded for date:', firstAvailableDate, slotsWithStatus)
+        
+        if (slotsWithStatus.length === 0) {
+          showToast('No Slots Available', 'No time slots available. Please try again later.', 'warning')
+        }
+      } else {
+        showToast('No Available Dates', 'No available dates found. Please try again later.', 'warning')
+      }
+    } else {
+      console.error('Invalid response format:', data)
+      showToast('Error', 'Invalid response from server. Please try again.', 'error')
+    }
+  } catch (error) {
+    console.error('Error fetching active slots:', error)
+    slotsForDate.value = []
+    showToast('Error', 'Failed to load available time slots. Please try again.', 'error')
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
+async function fetchSlotsForDate(dateString) {
+  if (!selectedService.value || !dateString) {
+    console.log('Missing required data for date-specific slot fetch')
+    slotsForDate.value = []
+    return
+  }
+
+  console.log('Fetching slots for specific date:', dateString)
+  
+  selectedSlot.value = ''
+  loadingSlots.value = true
+
+  // Check if we already have slots for this date from active slots
+  if (activeSlots.value[dateString]) {
+    const slotsForSelectedDate = activeSlots.value[dateString]
+    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateString)
+    }))
+    
+    slotsForDate.value = slotsWithStatus
+    loadingSlots.value = false
+    console.log('Using cached slots for date:', dateString, slotsWithStatus)
+    return
+  }
+
+  // If not in cache, fetch from the original API for the specific date
+  const serviceId = selectedService.value
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+  
+  // Convert date string to timestamps for the original API
+  const date = new Date(dateString + 'T00:00:00')
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(date)
+  end.setHours(23, 59, 59, 999)
+
+  const startDate = start.getTime()
+  const endDate = end.getTime()
+
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/getAllstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  console.log('Fallback API URL for date:', apiUrl)
+
+  try {
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    console.log('Fallback slots API response:', data)
+    
+    const formatted = data.formattedSlots || {}
+    const key = Object.keys(formatted)[0]
+    const allSlots = key ? formatted[key] : []
+    
+    // Filter slots by business hours
+    const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
+    
+    const slotsWithStatus = filteredSlots.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateString)
+    }))
+
+    slotsForDate.value = slotsWithStatus
+    console.log('Fallback slots loaded for date:', dateString, slotsWithStatus)
+    
+    if (slotsWithStatus.length === 0) {
+      showToast('No Slots Available', 'No time slots available for this date. Please try another date.', 'warning')
+    }
+  } catch (error) {
+    console.error('Error fetching slots for date:', error)
+    slotsForDate.value = []
+    showToast('Error', 'Failed to load available time slots. Please try again.', 'error')
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
+function isSlotInPastMST(slotTime, dateString) {
+  if (!dateString || !slotTime) return false
+  
+  // Get current time in MST (Mountain Standard Time - UTC-7)
+  const now = new Date()
+  const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
+  const nowMST = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + mstOffset)
+  
+  // Parse the date string (YYYY-MM-DD format)
+  const [year, month, day] = dateString.split('-').map(Number)
+  const slotDate = new Date(year, month - 1, day) // month is 0-indexed in JS Date
+  
+  // Parse slot time (e.g., "2:30 PM" or "02:30 PM")
+  const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (!timeMatch) return false
+  
+  let hour = parseInt(timeMatch[1])
+  const minute = parseInt(timeMatch[2])
+  const period = timeMatch[3].toUpperCase()
+  
+  if (period === 'PM' && hour !== 12) hour += 12
+  if (period === 'AM' && hour === 12) hour = 0
+  
+  slotDate.setHours(hour, minute, 0, 0)
+  
+  // Convert slot time to MST for comparison
+  const slotMST = new Date(slotDate.getTime() + (slotDate.getTimezoneOffset() * 60 * 1000) + mstOffset)
+  
+  return slotMST < nowMST
+}
+
+
 // --- Preselect today's date on mount ---
 onMounted(async () => {
-  // Preselect today's date
-  selectedCalendarDate.value = today(getLocalTimeZone())
+  // Don't preselect date here anymore - let the active slots API handle it
+  // selectedCalendarDate.value = today(getLocalTimeZone())
 })
 
-// Watch for step change to StepDateTime to fetch slots for today
 watch(currentStep, (step) => {
-  if (
-    step === 'StepDateTime' &&
-    selectedCalendarDate.value &&
-    selectedService.value &&
-    selectedStaff.value
-  ) {
-    // Fetch slots for the preselected date
-    const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
-    fetchSlots(jsDate)
+  if (step === 'StepDateTime' && selectedService.value && selectedStaff.value) {
+    // Fetch active slots when entering the date/time step
+    fetchActiveSlots()
   }
 })
 
-// Watch for calendar date changes and refresh slots if all required selections are made
 watch(selectedCalendarDate, (newDate) => {
   selectedSlot.value = ''
-  if (
-    newDate &&
-    currentStep.value === 'StepDateTime' &&
-    selectedService.value &&
-    selectedStaff.value
-  ) {
-    const jsDate = calendarDateToJSDate(newDate)
-    fetchSlots(jsDate)
+  if (newDate && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
+    // Convert CalendarDate to YYYY-MM-DD string format
+    const dateString = `${newDate.year}-${String(newDate.month).padStart(2, '0')}-${String(newDate.day).padStart(2, '0')}`
+    fetchSlotsForDate(dateString)
   } else {
     slotsForDate.value = []
+  }
+})
+
+watch(selectedStaff, (newStaff) => {
+  if (newStaff && currentStep.value === 'StepDateTime' && selectedService.value) {
+    // Refetch active slots when staff selection changes
+    fetchActiveSlots()
   }
 })
 
@@ -1066,85 +1279,6 @@ function handleStaffSubmit() {
 function getServiceDuration(serviceId) {
   const service = serviceRadioItems.value.find(s => s.value === serviceId)
   return service ? service.description.match(/Duration: (\d+) mins/)?.[1] || '' : ''
-}
-
-function fetchSlots(date) {
-  if (!date || !selectedService.value || !selectedStaff.value) {
-    console.log('Missing required data for slot fetch:', {
-      date: !!date,
-      service: !!selectedService.value,
-      staff: !!selectedStaff.value
-    })
-    slotsForDate.value = []
-    return
-  }
-
-  console.log('Fetching slots for:', {
-    date: date,
-    dateString: date.toISOString(),
-    service: selectedService.value,
-    staff: selectedStaff.value
-  })
-
-  selectedSlot.value = ''
-  slotsForDate.value = []
-  loadingSlots.value = true
-
-  const calendarId = selectedService.value
-  console.log(calendarId);
-  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-console.log(userId);
-  // Create start and end of day in local time, then convert to UTC timestamps
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(date)
-  end.setHours(23, 59, 59, 999)
-
-  // Convert to UTC timestamps
-  const startDate = start.getTime()
-  const endDate = end.getTime()
-
-  // Build API URL
-  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/getAllstaffslot?calendarId=${calendarId}&startDate=${startDate}&endDate=${endDate}`
-  if (userId) {
-    apiUrl += `&userId=${userId}`
-  }
-
-  console.log('API URL:', apiUrl)
-
-  fetch(apiUrl)
-    .then(res => res.json())
-    .then(data => {
-      console.log('Slots API response:', data)
-      const formatted = data.formattedSlots || {}
-      const key = Object.keys(formatted)[0]
-      const allSlots = key ? formatted[key] : []
-      console.log('Raw slots from API:', allSlots)
-
-      // Filter slots by business hours
-      const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
-      
-      // Convert slots to MST and add past/future status
-      const slotsWithStatus = filteredSlots.map(slot => ({
-        time: slot,
-        isPast: isSlotInPast(slot, selectedCalendarDate.value)
-      }))
-
-      slotsForDate.value = slotsWithStatus
-      console.log('Available slots (filtered and with status):', slotsForDate.value)
-      
-      if (slotsWithStatus.length === 0) {
-        showToast('No Slots Available', 'No time slots available for this date. Please try another date.', 'warning')
-      }
-    })
-    .catch((error) => {
-      console.error('Error fetching slots:', error)
-      slotsForDate.value = []
-      showToast('Error', 'Failed to load available time slots. Please try again.', 'error')
-    })
-    .finally(() => {
-      loadingSlots.value = false
-    })
 }
 
 function goToNextStepDateTime() {
@@ -1452,5 +1586,4 @@ function selectStaff(value) {
 }
 
 }
-
 </style>
