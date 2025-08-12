@@ -1559,6 +1559,24 @@ function selectStaff(value) {
   font-weight: bold;
 }
 
+/* Active tab: icon white, background your main color */
+:deep(.u-tabs .u-tab.is-active .u-tab-icon),
+:deep(.u-tabs .u-tab.is-active .u-icon),
+:deep(.u-tabs .u-tab.is-active .iconify) {
+  color: #fff !important;
+  background: #751A29 !important;
+  border-radius: 50% !important;
+}
+
+/* Optionally, set inactive tab icon color */
+:deep(.u-tabs .u-tab .u-tab-icon),
+:deep(.u-tabs .u-tab .u-icon),
+:deep(.u-tabs .u-tab .iconify) {
+  color: #751A29 !important;
+  background: #fff !important;
+  border-radius: 50% !important;
+}
+
 @media only screen and (max-width: 767px) {
 :deep(.success-last .img-icon) {
   width: 50px;
