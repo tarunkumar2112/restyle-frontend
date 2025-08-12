@@ -1091,8 +1091,9 @@ function fetchSlots(date) {
   loadingSlots.value = true
 
   const calendarId = selectedService.value
+  console.log(calendarId);
   const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-
+console.log(userId);
   // Create start and end of day in local time, then convert to UTC timestamps
   const start = new Date(date)
   start.setHours(0, 0, 0, 0)
