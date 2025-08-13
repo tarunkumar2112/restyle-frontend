@@ -1,7 +1,8 @@
 <template>
   <div class="min-h-screen bg-white book-main">
     <div class="flex flex-col items-center gap-6 pt-12 pb-16 px-4">
-      <div class="text-center mb-8">
+  <!--     
+      <div class="text-center mb-2 book-heading-top">
         <h1 class="font-bold text-4xl mb-3 text-black">
           Book Your Appointment
         </h1>
@@ -9,6 +10,7 @@
           Experience professional hair and beauty services with our expert stylists in a luxurious environment
         </p>
       </div>
+  -->
       
       <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden department-block">
         <UStepper disabled :items="steps" v-model="currentStep" class="p-8 department-inner">
@@ -29,7 +31,7 @@
                     :key="item.value"
                     @click="selectDepartment(item.value)"
                     :class="[
-                      'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
+                      'cursor-pointer p-6 border-1 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedDepartment === item.value
                         ? 'bg-red-50 text-black border-red-700 shadow-sm'
                         : 'bg-white text-black border-gray-200 hover:border-red-300'
@@ -101,7 +103,7 @@
                     :key="item.value"
                     @click="selectService(item.value)"
                     :class="[
-                      'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
+                      'cursor-pointer p-6 border-1 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedService === item.value
                         ? 'bg-red-50 text-black border-red-700 shadow-sm'
                         : 'bg-white text-black border-gray-200 hover:border-red-300'
@@ -207,7 +209,7 @@
                       size="xs"
                       color="gray"
                       variant="soft"
-                      class="mt-2"
+                      class="mt-2 border border-gray-200 w-full text-center justify-center p-[6px] text-white bg-[#751a29] cursor-pointer"
                       @click="resetGuestInput"
                     >
                       Cancel
@@ -231,7 +233,7 @@
                     :key="item.value"
                     @click="selectStaff(item.value)"
                     :class="[
-                      'cursor-pointer p-6 border-2 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
+                      'cursor-pointer p-6 border-1 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
                       selectedStaff === item.value
                         ? 'bg-red-50 text-black border-red-700 shadow-sm'
                         : 'bg-white text-black border-gray-200 hover:border-red-300'
@@ -324,7 +326,7 @@
                 <!-- Calendar -->
                 <div class="space-y-4">
                   <h3 class="font-bold text-xl text-black text-center">Select Date</h3>
-                  <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm calender-main">
                     <UCalendar 
                       v-model="selectedCalendarDate"
                       size="xl"
@@ -498,8 +500,8 @@
                 <div class="space-y-4">
                   <h3 class="font-bold text-xl text-black mb-4">Appointment Summary</h3>
                   
-                  <div class="space-y-4">
-                    <div class="p-6 rounded-xl border border-gray-200 bg-white">
+                  <div class="space-y-4 appointment-summary-mobile">
+                    <div class="p-6 rounded-xl border border-gray-200 bg-white appointment-summary-mobile-block">
                       <div class="space-y-3">
                         <div class="flex items-center gap-3">
                           <UIcon name="i-lucide-calendar" class="text-xl text-red-700" />
@@ -519,7 +521,7 @@
                       </div>
                     </div>
                     
-                    <div class="p-6 rounded-xl border border-gray-200 bg-white">
+                    <div class="p-6 rounded-xl border border-gray-200 bg-white appointment-summary-mobile-block">
                       <div class="space-y-3">
                         <div class="font-bold text-lg text-black">{{ selectedServiceObj?.label }}</div>
                         <div class="flex items-center gap-3">
@@ -538,10 +540,10 @@
             </div>
           </template>
           <template #StepSuccess>
-            <div class="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6 same-btn-prev-next success-last">
+            <div class="flex flex-col items-center justify-center min-h-[400px] text-center space-y-6 same-btn-prev-next success-last pt-4">
               <div class="relative success-last-mobile">
-                <div class="w-24 h-24 bg-red-700 rounded-full flex items-center justify-center shadow-sm img-icon">
-                  <UIcon name="i-lucide-check-circle" class="text-4xl text-white" />
+                <div class="w-24 h-24 h-[60px] w-[60px] bg-red-700 rounded-full flex items-center justify-center shadow-sm img-icon">
+                  <UIcon name="i-lucide-check-circle" class="text-2xl text-white" />
                 </div>
                 <div class="absolute -top-2 -right-2 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center border border-red-200">
                   <UIcon name="i-lucide-sparkles" class="text-lg text-red-700" />
@@ -549,7 +551,7 @@
               </div>
               
               <div class="space-y-4">
-                <h2 class="font-bold text-3xl text-black">Booking Confirmed! 🎉</h2>
+                <h2 class="font-bold text-3xl text-black booking-mobile">Booking Confirmed! 🎉</h2>
                 <p class="text-lg text-gray-700 max-w-md">
                   Thank you for choosing us! Your appointment has been successfully booked. 
                   We're excited to see you soon!
@@ -558,11 +560,11 @@
               
               <div class="p-6 bg-red-50 rounded-xl border border-red-200 max-w-md">
                 <div class="space-y-2">
-                  <div class="font-semibold text-black">What's Next?</div>
+                  <div class="font-semibold text-black text-[20px]">What's Next?</div>
                   <div class="text-sm text-gray-700 space-y-1">
-                    <p>• You'll receive a confirmation email shortly</p>
-                    <p>• We'll send you a reminder 24 hours before</p>
-                    <p>• Feel free to call us if you need to reschedule</p>
+                    <p class="text-[16px] text-black font-medium">• You'll receive a confirmation email shortly</p>
+                   <p class="text-[16px] text-black font-medium"> • We'll send you a reminder 24 hours before</p>
+                   <p class="text-[16px] text-black font-medium"> • Feel free to call us if you need to reschedule</p>
                   </div>
                 </div>
               </div>
@@ -1576,6 +1578,61 @@ function selectStaff(value) {
   background: #fff !important;
   border-radius: 50% !important;
 }
+:deep(.department-block button.rounded-full) {
+  color: #fff;
+}
+:deep(.calender-main[data-selected]) {
+    color: #fff !important;
+}
+:deep(.calender-main [aria-selected] .text-lg) {
+  color: #fff;
+}
+
+:deep(.same-block-content) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+:deep(.same-block-content .cursor-pointer) {
+  padding: 15px;
+}
+
+:deep(.same-block-content .cursor-pointer span) {
+  font-size: 16px;
+}
+
+:deep(.same-block-content .cursor-pointer .bg-gray-100) {
+ width:40px;
+ height:40px;
+}
+:deep(.same-block-content .cursor-pointer .bg-red-500) {
+  background: #751a29;
+  font-size: 14px !important;
+}
+:deep(.information-depaerment-form .text-inverted) {
+  color: #fff !important;
+}
+
+
+@media only screen and (max-width: 1023px) {
+:deep(.appointment-summary-mobile) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block) {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 15px;
+}
+}
+
+
+
+
 
 @media only screen and (max-width: 767px) {
 :deep(.success-last .img-icon) {
@@ -1589,6 +1646,7 @@ function selectStaff(value) {
 }
 .flex.gap-4.flex-col.p-8.department-inner {
     padding: 30px 15px;
+    gap:0px;
 }
 
 :deep(.department-inner .flex .group) {
@@ -1602,6 +1660,45 @@ function selectStaff(value) {
 :deep(.same-block-content .transition-all span) {
   font-size: 16px;
 }
+:deep(.book-heading-top h1) {
+  font-size: 26px;
+}
+:deep(.book-heading-top p) {
+  font-size: 16px;
+}
+:deep(.same-block-content) {
+  grid-template-columns: 1fr;
+}
+}
+@media only screen and (max-width: 599px) {
+:deep(.appointment-summary-mobile) {
+  gap: 15px;
+}
 
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block) {
+  padding: 15px 10px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block span) {
+  font-size: 14px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block .text-lg) {
+  font-size: 14px;
+}
+:deep(.same-block-content .cursor-pointer .bg-red-500) {
+  font-size: 11px !important;
+
+}
+:deep(.department-inner .booking-mobile) {
+  font-size: 24px;
+}
+
+}
+
+@media only screen and (max-width: 399px) {
+  :deep(.appointment-summary-mobile) {
+  grid-template-columns:1fr;
+}
 }
 </style>
