@@ -1177,10 +1177,11 @@ function navigateDate(direction) {
   const newIndex = currentDateIndex.value + direction
   if (newIndex >= 0 && newIndex <= availableDates.value.length - 2) {
     currentDateIndex.value = newIndex
-    // Auto-select first visible date after navigation
+    // Auto-select first visible date after navigation and fetch slots
     const firstVisibleDate = availableDates.value[newIndex]
     if (firstVisibleDate) {
       selectDate(firstVisibleDate)
+      // fetchSlotsForDate is already called in selectDate
     }
   }
 }
