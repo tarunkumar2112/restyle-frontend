@@ -294,74 +294,88 @@
             <div class="space-y-6">
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Select Date & Time</h2>
-                <p class="text-gray-700">Choose your preferred appointment date and time</p>
-              </div>
-              
-              <!-- Summary cards -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
-                  <div class="font-bold text-lg mb-1 text-black">Service</div>
-                  <div class="text-red-700 font-semibold">
-                    {{ selectedServiceObj?.label || 'No service selected' }}
-                  </div>
-                </div>
-                <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
-                  <div class="font-bold text-lg mb-1 text-black">Guests</div>
-                  <div class="flex items-center justify-center gap-2">
-                    <UIcon :name="guestCount > 1 ? 'i-lucide-users' : 'i-lucide-user'" class="text-2xl text-red-700" />
-                    <span class="font-bold text-xl text-black">{{ guestCount }}</span>
-                  </div>
-                </div>
-                <div class="p-4 rounded-xl border border-gray-200 bg-white text-center">
-                  <div class="font-bold text-lg mb-1 text-black">Stylist</div>
-                  <div class="text-red-700 font-semibold text-center">{{ selectedStaffObj?.label || 'Any available' }}</div>
-                </div>
+                <p class="text-gray-700">Choose your preferred appointment slot</p>
               </div>
 
-              <!-- Timezone indicator -->
-           
+              <!-- Added MST timezone indicator -->
+              <div class="text-center mb-6">
+                <div class="text-sm font-medium text-gray-600 uppercase tracking-wide">
+                  TIME ZONE: MOUNTAIN TIME - EDMONTON (GMT-06:00)
+                </div>
+              </div>
               
-              <!-- Calendar and slots -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Calendar -->
-                <div class="space-y-4">
-                  <h3 class="font-bold text-xl text-black text-center">Select Date</h3>
-                  <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm calender-main">
-                    <UCalendar 
-                      v-model="selectedCalendarDate"
-                      size="xl"
-                      :min-date="today(getLocalTimeZone())"
-                    />
-                  </div>
-                  <div v-if="selectedCalendarDate" class="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-                    <span class="text-black font-semibold">{{ formatCalendarDate(selectedCalendarDate) }}</span>
+              <!-- Updated date slider to auto-select dates when navigating -->
+              <div class="space-y-6">
+                <!-- Date Slider -->
+                <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <div class="flex items-center justify-between mb-6">
+                    <UButton
+                      variant="ghost"
+                      size="sm"
+                      @click="navigateDate(-1)"
+                      :disabled="currentDateIndex <= 0"
+                      class="p-2"
+                    >
+                      <UIcon name="i-lucide-chevron-left" class="text-xl" />
+                    </UButton>
+                    
+                    <div class="flex-1 grid grid-cols-2 gap-4 mx-4">
+                      <div
+                        v-for="(dateInfo, index) in visibleDates"
+                        :key="dateInfo.dateString"
+                        :class="[
+                          'p-4 rounded-lg border-2 transition-all duration-200 text-center',
+                          selectedDateString === dateInfo.dateString
+                            ? 'border-red-700 bg-red-50'
+                            : 'border-gray-200 bg-gray-50'
+                        ]"
+                      >
+                        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                          {{ dateInfo.label }}
+                        </div>
+                        <div class="font-bold text-lg text-black">
+                          {{ dateInfo.dayName }}
+                        </div>
+                        <div class="text-sm text-gray-600">
+                          {{ dateInfo.dateDisplay }}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <UButton
+                      variant="ghost"
+                      size="sm"
+                      @click="navigateDate(1)"
+                      :disabled="currentDateIndex >= availableDates.length - 2"
+                      class="p-2"
+                    >
+                      <UIcon name="i-lucide-chevron-right" class="text-xl" />
+                    </UButton>
                   </div>
                 </div>
                 
-                <!-- Time slots -->
+                <!-- Updated time slots section to show only enabled slots -->
                 <div class="space-y-4 times-block">
-                  <h3 class="font-bold text-xl text-black text-center">Available Times (MST)</h3>
                   <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm min-h-[400px]">
                     <div v-if="loadingSlots" class="space-y-3">
                       <div class="grid grid-cols-2 gap-3">
                         <USkeleton class="h-12 rounded-lg bg-gray-100" v-for="i in 8" :key="i" />
                       </div>
                     </div>
-                    <div v-else-if="slotsForDate.length > 0" class="space-y-4">
+                    <!-- Only show enabled slots, auto-navigate when slot selected -->
+                    <div v-else-if="enabledSlotsForDate.length > 0" class="space-y-4">
                       <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                         <UButton
-                          v-for="slot in slotsForDate"
+                          v-for="slot in enabledSlotsForDate"
                           :key="slot.time"
                           :color="selectedSlot === slot.time ? 'primary' : 'gray'"
                           :variant="selectedSlot === slot.time ? 'solid' : 'soft'"
                           size="sm"
-                          class="py-3 transition-all duration-200 text-black border border-gray-500 rounded-[10px] justify-center"
-                          @click="selectedSlot = slot.time"
+                          class="py-3 transition-all duration-200 text-black border border-gray-300 rounded-lg justify-center hover:shadow-sm"
+                          @click="selectTimeSlot(slot.time)"
                           :class="[
-                            selectedSlot === slot.time ? 'bg-red-700 hover:bg-red-700 text-white ring-2 ring-red-300 shadow-sm' : '',
-                            slot.isPast ? 'opacity-40 text-[#0000006e] border border-gray-500 rounded-[10px] justify-center' : 'hover:shadow-sm'
+                            selectedSlot === slot.time ? 'bg-red-700 hover:bg-red-700 text-white border-red-700 shadow-sm' : 'hover:border-red-300'
                           ]"
-                          :disabled="slot.isPast"
                         >
                           {{ slot.time }}
                         </UButton>
@@ -370,8 +384,8 @@
                     <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
                       <UIcon name="i-lucide-calendar-x" class="text-4xl" />
                       <div class="text-center">
-                        <p class="font-medium text-black">{{ selectedCalendarDate ? 'No slots available' : 'Select a date first' }}</p>
-                        <p class="text-sm text-gray-600">{{ selectedCalendarDate ? 'Try choosing a different date' : 'Choose a date to see available times' }}</p>
+                        <p class="font-medium text-black">{{ selectedDateString ? 'No slots available' : 'Select a date first' }}</p>
+                        <p class="text-sm text-gray-600">{{ selectedDateString ? 'Try choosing a different date' : 'Choose a date to see available times' }}</p>
                       </div>
                     </div>
                   </div>
@@ -414,10 +428,21 @@
           </template>
 
           <template #StepInformation>
-            <div class="space-y-6 information-depaerment">
-              <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold text-black mb-2">Your Information</h2>
-                <p class="text-gray-700">Please provide your contact details to complete the booking</p>
+            <!-- Added back arrow to booking step -->
+            <div class="space-y-6">
+              <div class="flex items-center mb-6">
+                <UButton
+                  variant="ghost"
+                  size="sm"
+                  @click="goToPreviousStep"
+                  class="mr-4"
+                >
+                  <UIcon name="i-lucide-arrow-left" class="text-xl" />
+                </UButton>
+                <div class="text-center flex-1">
+                  <h2 class="text-2xl font-bold text-black mb-2">Contact Information</h2>
+                  <p class="text-gray-700">Please provide your details to complete the booking</p>
+                </div>
               </div>
               
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -584,53 +609,7 @@
       </div>
     </div>
 
-    <!-- Enhanced Toast Container -->
-    <div class="fixed w-[400px] top-4 right-0 z-50 space-y-3">
-      <div
-        v-for="toast in toasts"
-        :key="toast.id"
-        :class="[
-          'max-w-sm w-full bg-white shadow-lg rounded-xl pointer-events-auto flex ring-1 ring-gray-200 transform transition-all duration-300 overflow-hidden',
-          toast.show ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-full opacity-0 scale-95'
-        ]"
-      >
-        <div :class="[
-          'w-1 flex-shrink-0',
-          toast.type === 'success' ? 'bg-red-500' : '',
-          toast.type === 'error' ? 'bg-red-500' : '',
-          toast.type === 'warning' ? 'bg-yellow-500' : '',
-          toast.type === 'info' ? 'bg-blue-500' : ''
-        ]"></div>
-        <div class="flex-1 p-4">
-          <div class="flex items-start">
-            <div class="flex-shrink-0">
-              <UIcon 
-                :name="getToastIcon(toast.type)"
-                :class="[
-                  'h-5 w-5',
-                  toast.type === 'success' ? 'text-red-500' : '',
-                  toast.type === 'error' ? 'text-red-500' : '',
-                  toast.type === 'warning' ? 'text-yellow-500' : '',
-                  toast.type === 'info' ? 'text-blue-500' : ''
-                ]"
-              />
-            </div>
-            <div class="ml-3 w-0 flex-1">
-              <p class="text-sm font-semibold text-black">{{ toast.title }}</p>
-              <p class="mt-1 text-sm text-gray-600">{{ toast.message }}</p>
-            </div>
-            <div class="ml-4 flex-shrink-0 flex">
-              <button
-                @click="removeToast(toast.id)"
-                class="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none transition-colors duration-200"
-              >
-                <UIcon name="i-lucide-x" class="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Removed toast container completely -->
   </div>
 </template>
 
@@ -638,52 +617,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 
-// Custom Toast System
-const toasts = ref([])
-let toastId = 0
-
-function showToast(title, message, type = 'info') {
-  const id = ++toastId
-  const toast = {
-    id,
-    title,
-    message,
-    type,
-    show: false
-  }
-  
-  toasts.value.push(toast)
-  
-  // Show toast with animation
-  setTimeout(() => {
-    toast.show = true
-  }, 100)
-  
-  // Auto remove after 5 seconds
-  setTimeout(() => {
-    removeToast(id)
-  }, 5000)
-}
-
-function removeToast(id) {
-  const index = toasts.value.findIndex(t => t.id === id)
-  if (index > -1) {
-    toasts.value[index].show = false
-    setTimeout(() => {
-      toasts.value.splice(index, 1)
-    }, 300)
-  }
-}
-
-function getToastIcon(type) {
-  switch (type) {
-    case 'success': return 'i-lucide-check-circle'
-    case 'error': return 'i-lucide-x-circle'
-    case 'warning': return 'i-lucide-alert-triangle'
-    case 'info': return 'i-lucide-info'
-    default: return 'i-lucide-info'
-  }
-}
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
@@ -949,7 +882,6 @@ onMounted(async () => {
   } catch (e) {
     departmentRadioItems.value = []
     groupTabs.value = []
-    showToast('Error', 'Failed to load departments. Please refresh the page.', 'error')
   } finally {
     loadingGroups.value = false
   }
@@ -970,7 +902,6 @@ watch(selectedDepartment, async (groupId) => {
     selectedService.value = ''
   } catch (e) {
     serviceRadioItems.value = []
-    showToast('Error', 'Failed to load services. Please try again.', 'error')
   } finally {
     loadingServices.value = false
   }
@@ -1016,7 +947,6 @@ watch(selectedService, async (serviceId) => {
     staffRadioItems.value = items
   } catch (e) {
     staffRadioItems.value = []
-    showToast('Error', 'Failed to load staff. Please try again.', 'error')
   } finally {
     loadingStaff.value = false
   }
@@ -1084,19 +1014,15 @@ async function fetchActiveSlots() {
         console.log('Active slots loaded for date:', firstAvailableDate, slotsWithStatus)
         
         if (slotsWithStatus.length === 0) {
-          showToast('No Slots Available', 'No time slots available. Please try again later.', 'warning')
         }
       } else {
-        showToast('No Available Dates', 'No available dates found. Please try again later.', 'warning')
       }
     } else {
       console.error('Invalid response format:', data)
-      showToast('Error', 'Invalid response from server. Please try again.', 'error')
     }
   } catch (error) {
     console.error('Error fetching active slots:', error)
     slotsForDate.value = []
-    showToast('Error', 'Failed to load available time slots. Please try again.', 'error')
   } finally {
     loadingSlots.value = false
   }
@@ -1170,12 +1096,10 @@ async function fetchSlotsForDate(dateString) {
     console.log('Fallback slots loaded for date:', dateString, slotsWithStatus)
     
     if (slotsWithStatus.length === 0) {
-      showToast('No Slots Available', 'No time slots available for this date. Please try another date.', 'warning')
     }
   } catch (error) {
     console.error('Error fetching slots for date:', error)
     slotsForDate.value = []
-    showToast('Error', 'Failed to load available time slots. Please try again.', 'error')
   } finally {
     loadingSlots.value = false
   }
@@ -1212,35 +1136,104 @@ function isSlotInPastMST(slotTime, dateString) {
   return slotMST < nowMST
 }
 
+const currentDateIndex = ref(0)
+const availableDates = ref([])
+const visibleDates = computed(() => {
+  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 2)
+})
 
-// --- Preselect today's date on mount ---
+function generateAvailableDates() {
+  const dates = []
+  const today = new Date()
+  
+  // Generate next 14 days
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+    
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
+    const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    
+    let label = ''
+    if (i === 0) label = 'TODAY'
+    else if (i === 1) label = 'TOMORROW'
+    else if (i <= 7) label = 'THIS WEEK'
+    else label = 'NEXT WEEK'
+    
+    dates.push({
+      dateString,
+      dayName,
+      dateDisplay,
+      label,
+      date
+    })
+  }
+  
+  availableDates.value = dates
+}
+
+function navigateDate(direction) {
+  const newIndex = currentDateIndex.value + direction
+  if (newIndex >= 0 && newIndex <= availableDates.value.length - 2) {
+    currentDateIndex.value = newIndex
+    // Auto-select first visible date after navigation
+    const firstVisibleDate = availableDates.value[newIndex]
+    if (firstVisibleDate) {
+      selectDate(firstVisibleDate)
+    }
+  }
+}
+
+function selectDate(dateInfo) {
+  selectedDateString.value = dateInfo.dateString
+  // Convert to CalendarDate for compatibility with existing logic
+  const [year, month, day] = dateInfo.dateString.split('-').map(Number)
+  selectedCalendarDate.value = new CalendarDate(year, month, day)
+  fetchSlotsForDate(dateInfo.dateString)
+}
+
+function selectTimeSlot(time) {
+  selectedSlot.value = time
+  // Auto-navigate to booking step when slot is selected
+  setTimeout(() => {
+    currentStep.value = 'StepInformation'
+  }, 500) // Small delay for better UX
+}
+
+const enabledSlotsForDate = computed(() => {
+  return slotsForDate.value.filter(slot => !slot.disabled && !slot.isPast)
+})
+
+const selectedDateString = ref('')
+const userTimezone = ref('')
+
 onMounted(async () => {
-  // Don't preselect date here anymore - let the active slots API handle it
-  // selectedCalendarDate.value = today(getLocalTimeZone())
+  generateAvailableDates()
+  userTimezone.value = 'MST'
+  
+  // Auto-select first available date
+  if (availableDates.value.length > 0) {
+    selectDate(availableDates.value[0])
+  }
 })
 
 watch(currentStep, (step) => {
   if (step === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    // Fetch active slots when entering the date/time step
+    generateAvailableDates()
+    if (availableDates.value.length > 0 && !selectedDateString.value) {
+      selectDate(availableDates.value[0])
+    }
     fetchActiveSlots()
   }
 })
 
-watch(selectedCalendarDate, (newDate) => {
+watch(selectedDateString, (newDateString) => {
   selectedSlot.value = ''
-  if (newDate && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    // Convert CalendarDate to YYYY-MM-DD string format
-    const dateString = `${newDate.year}-${String(newDate.month).padStart(2, '0')}-${String(newDate.day).padStart(2, '0')}`
-    fetchSlotsForDate(dateString)
+  if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
+    fetchSlotsForDate(newDateString)
   } else {
     slotsForDate.value = []
-  }
-})
-
-watch(selectedStaff, (newStaff) => {
-  if (newStaff && currentStep.value === 'StepDateTime' && selectedService.value) {
-    // Refetch active slots when staff selection changes
-    fetchActiveSlots()
   }
 })
 
@@ -1252,29 +1245,26 @@ function goToPreviousStep() {
     currentStep.value = 'StepService'
   } else if (currentStep.value === 'StepDateTime') {
     currentStep.value = 'StepStaff'
+  } else if (currentStep.value === 'StepInformation') {
+    currentStep.value = 'StepDateTime'
   }
 }
 
-// Handle department submit
 function handleDepartmentSubmit() {
   if (selectedDepartment.value) {
     currentStep.value = 'StepService'
-    showToast('Department Selected', 'Great choice! Now select your service.', 'success')
   }
 }
 
-// Handle service submit
 function handleServiceSubmit() {
   if (selectedService.value) {
     currentStep.value = 'StepStaff'
-    showToast('Service Selected', 'Perfect! Now specify the number of guests and choose your stylist.', 'success')
   }
 }
 
 function handleStaffSubmit() {
   if (selectedStaff.value) {
     currentStep.value = 'StepDateTime'
-    showToast('Staff Selected', 'Excellent! Now choose your preferred date and time.', 'success')
   }
 }
 
@@ -1286,13 +1276,11 @@ function getServiceDuration(serviceId) {
 function goToNextStepDateTime() {
   if (selectedSlot.value) {
     currentStep.value = 'StepInformation'
-    showToast('Time Slot Selected', 'Perfect! Now provide your contact information.', 'success')
   }
 }
 
 async function handleInformationSubmit() {
   if (!validateForm()) {
-    showToast('Form Validation Error', 'Please correct the errors in the form.', 'error')
     return
   }
 
@@ -1374,10 +1362,8 @@ async function handleInformationSubmit() {
     bookingResponse.value = bookData.response
     currentStep.value = 'StepSuccess'
     
-    showToast('Booking Confirmed! 🎉', 'Your appointment has been successfully booked!', 'success')
   } catch (err) {
     console.error('Booking error:', err)
-    showToast('Booking Failed', err.message || 'Something went wrong. Please try again.', 'error')
   } finally {
     bookingLoading.value = false
   }
@@ -1408,33 +1394,29 @@ function resetBooking() {
   }
   bookingResponse.value = null
   slotsForDate.value = []
-  
-  showToast('Ready for New Booking', 'You can now book another appointment.', 'info')
 }
 
-// --- Add these methods for instant step change ---
 function selectDepartment(value) {
   selectedDepartment.value = value
   // Wait for UI update, then move to next step
   setTimeout(() => {
     handleDepartmentSubmit()
-  }, 0)
+  }, 100)
 }
 
 function selectService(value) {
   selectedService.value = value
   setTimeout(() => {
     handleServiceSubmit()
-  }, 0)
+  }, 100)
 }
 
 function selectStaff(value) {
   selectedStaff.value = value
   setTimeout(() => {
     handleStaffSubmit()
-  }, 0)
+  }, 100)
 }
-// --- end ---
 </script>
 
 <style scoped>
