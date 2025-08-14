@@ -622,7 +622,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
-
+import { useRoute } from 'vue-router'
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
@@ -1242,6 +1242,19 @@ onMounted(async () => {
   if (availableDates.value.length > 0) {
     selectDate(availableDates.value[0])
   }
+
+  // Check for ?id=... in URL (works for Nuxt or Vue Router projects)
+  let idFromQuery = ''
+  if (route && route.query && route.query.id) {
+    idFromQuery = route.query.id
+  } else if (typeof window !== 'undefined') {
+    // fallback for plain Vue: parse window.location.search
+    const params = new URLSearchParams(window.location.search)
+    idFromQuery = params.get('id')
+  }
+  if (idFromQuery) {
+    preselectedDepartmentId.value = idFromQuery
+  }
 })
 
 watch(selectedDateString, (newDateString, oldDateString) => {
@@ -1483,6 +1496,41 @@ function selectStaff(value) {
     handleStaffSubmit()
   }, 100)
 }
+
+// --- Add this at the top of <script setup> ---
+const route = typeof useRoute === 'function' ? useRoute() : null
+const preselectedDepartmentId = ref('')
+
+// --- On mount, check for ?id=... in URL and preselect department ---
+onMounted(async () => {
+  // ...existing code...
+  // Check for ?id=... in URL (works for Nuxt or Vue Router projects)
+  let idFromQuery = ''
+  if (route && route.query && route.query.id) {
+    idFromQuery = route.query.id
+  } else if (typeof window !== 'undefined') {
+    // fallback for plain Vue: parse window.location.search
+    const params = new URLSearchParams(window.location.search)
+    idFromQuery = params.get('id')
+  }
+  if (idFromQuery) {
+    preselectedDepartmentId.value = idFromQuery
+  }
+})
+
+// --- After departmentRadioItems are loaded, auto-select department if preselectedDepartmentId is set ---
+watch([departmentRadioItems, preselectedDepartmentId], ([items, preId]) => {
+  if (preId && items.length > 0) {
+    const found = items.find(item => item.value === preId)
+    if (found) {
+      selectedDepartment.value = preId
+      // Optionally, auto-advance to next step:
+      setTimeout(() => {
+        handleDepartmentSubmit()
+      }, 100)
+    }
+  }
+})
 </script>
 
 <style scoped>
