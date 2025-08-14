@@ -1374,7 +1374,6 @@ async function handleInformationSubmit() {
 
     // 2. Book appointment
     const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
-
     // Parse selectedSlot time
     const slotMatch = selectedSlot.value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
     let hour = 9, minute = 0
@@ -1402,30 +1401,13 @@ async function handleInformationSubmit() {
 
     // --- Assign staff logic ---
     let assignedUserId = selectedStaff.value
+    // If user selected "Any available staff", pick a random real staff from staffRadioItems (excluding "any")
     if (assignedUserId === 'any' || !assignedUserId) {
-      // Find a random staff from the selected service's teamMembers
-      let staffList = []
-      // Find the service object (from serviceRadioItems or fetch)
-      let serviceObj = null
-      if (serviceRadioItems.value.length) {
-        serviceObj = serviceRadioItems.value.find(s => s.value === selectedService.value)
-      }
-      // If not found, fetch service details
-      if (!serviceObj) {
-        try {
-          const groupId = selectedDepartment.value
-          const res = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getDynamicService?id=${groupId}`)
-          const data = await res.json()
-          serviceObj = (data.calendars || []).find(s => s.id === selectedService.value)
-        } catch {}
-      }
-      if (serviceObj && serviceObj.teamMembers && serviceObj.teamMembers.length > 0) {
-        staffList = serviceObj.teamMembers
-      }
-      if (staffList.length > 0) {
-        // Pick a random staff
-        const randomStaff = staffList[Math.floor(Math.random() * staffList.length)]
-        assignedUserId = randomStaff.userId
+      // staffRadioItems: first is "any", rest are real staff
+      const realStaff = staffRadioItems.value.filter(item => item.value !== 'any')
+      if (realStaff.length > 0) {
+        const randomStaff = realStaff[Math.floor(Math.random() * realStaff.length)]
+        assignedUserId = randomStaff.value
       } else {
         throw new Error('No staff available for this service')
       }
