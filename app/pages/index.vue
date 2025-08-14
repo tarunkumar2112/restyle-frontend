@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-white book-main">
-    <div class="flex flex-col items-center gap-6 pt-12 pb-16 px-4">
+    <div class="flex flex-col items-center gap-6  pb-16 px-4">
   <!--     
       <div class="text-center mb-2 book-heading-top">
         <h1 class="font-bold text-4xl mb-3 text-black">
@@ -12,7 +12,7 @@
       </div>
   -->
       
-      <div class="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden department-block">
+      <div class="w-full max-w-4xl overflow-hidden department-block">
         <UStepper disabled :items="steps" v-model="currentStep" class="p-8 department-inner">
           <template #StepDepartment>
             <div class="space-y-6 department-inner-heading">
