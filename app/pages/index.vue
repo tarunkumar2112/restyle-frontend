@@ -304,7 +304,7 @@
                 </div>
               </div>
               
-              <!-- Updated date slider to auto-select dates when navigating -->
+              <!-- Updated date slider to show 3 dates and make them clickable -->
               <div class="space-y-6">
                 <!-- Date Slider -->
                 <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -319,15 +319,17 @@
                       <UIcon name="i-lucide-chevron-left" class="text-xl" />
                     </UButton>
                     
-                    <div class="flex-1 grid grid-cols-2 gap-4 mx-4">
+                    <!-- Changed from grid-cols-2 to grid-cols-3 and added click handlers -->
+                    <div class="flex-1 grid grid-cols-3 gap-4 mx-4">
                       <div
                         v-for="(dateInfo, index) in visibleDates"
                         :key="dateInfo.dateString"
+                        @click="selectDate(dateInfo)"
                         :class="[
-                          'p-4 rounded-lg border-2 transition-all duration-200 text-center',
+                          'p-4 rounded-lg border-2 transition-all duration-200 text-center cursor-pointer hover:shadow-md',
                           selectedDateString === dateInfo.dateString
                             ? 'border-red-700 bg-red-50'
-                            : 'border-gray-200 bg-gray-50'
+                            : 'border-gray-200 bg-gray-50 hover:border-red-300'
                         ]"
                       >
                         <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
@@ -346,7 +348,7 @@
                       variant="ghost"
                       size="sm"
                       @click="navigateDate(1)"
-                      :disabled="currentDateIndex >= availableDates.length - 2"
+                      :disabled="currentDateIndex >= availableDates.length - 3"
                       class="p-2"
                     >
                       <UIcon name="i-lucide-chevron-right" class="text-xl" />
@@ -362,8 +364,11 @@
                         <USkeleton class="h-12 rounded-lg bg-gray-100" v-for="i in 8" :key="i" />
                       </div>
                     </div>
-                    <!-- Only show enabled slots, auto-navigate when slot selected -->
+                    <!-- Enhanced slot display with better error handling -->
                     <div v-else-if="enabledSlotsForDate.length > 0" class="space-y-4">
+                      <div class="text-sm text-gray-600 mb-3">
+                        Available slots for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
+                      </div>
                       <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                         <UButton
                           v-for="slot in enabledSlotsForDate"
@@ -394,6 +399,7 @@
                     <div class="text-center">
                       <div class="font-bold text-black text-lg">Selected Time</div>
                       <div class="text-red-700 font-semibold">{{ selectedSlot }} MST</div>
+                      <div class="text-sm text-gray-600 mt-1">{{ formatDateForDisplay(selectedDateString) }}</div>
                     </div>
                   </div>
                 </div>
@@ -1139,7 +1145,7 @@ function isSlotInPastMST(slotTime, dateString) {
 const currentDateIndex = ref(0)
 const availableDates = ref([])
 const visibleDates = computed(() => {
-  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 2)
+  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
 })
 
 function generateAvailableDates() {
@@ -1175,9 +1181,9 @@ function generateAvailableDates() {
 
 function navigateDate(direction) {
   const newIndex = currentDateIndex.value + direction
-  if (newIndex >= 0 && newIndex <= availableDates.value.length - 2) {
+  if (newIndex >= 0 && newIndex <= availableDates.value.length - 3) {
     currentDateIndex.value = newIndex
-    // Auto-select first visible date after navigation
+    // Auto-select first visible date after navigation and fetch slots
     const firstVisibleDate = availableDates.value[newIndex]
     if (firstVisibleDate) {
       selectDate(firstVisibleDate)
@@ -1186,14 +1192,22 @@ function navigateDate(direction) {
 }
 
 function selectDate(dateInfo) {
+  console.log('Selecting date:', dateInfo.dateString)
   selectedDateString.value = dateInfo.dateString
+  selectedSlot.value = '' // Clear selected slot when changing date
+  
   // Convert to CalendarDate for compatibility with existing logic
   const [year, month, day] = dateInfo.dateString.split('-').map(Number)
   selectedCalendarDate.value = new CalendarDate(year, month, day)
-  fetchSlotsForDate(dateInfo.dateString)
+  
+  // Always fetch slots when date is selected
+  if (selectedService.value && selectedStaff.value) {
+    fetchSlotsForDate(dateInfo.dateString)
+  }
 }
 
 function selectTimeSlot(time) {
+  console.log('Selecting time slot:', time, 'for date:', selectedDateString.value)
   selectedSlot.value = time
   // Auto-navigate to booking step when slot is selected
   setTimeout(() => {
@@ -1204,6 +1218,18 @@ function selectTimeSlot(time) {
 const enabledSlotsForDate = computed(() => {
   return slotsForDate.value.filter(slot => !slot.disabled && !slot.isPast)
 })
+
+function formatDateForDisplay(dateString) {
+  if (!dateString) return ''
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+}
 
 const selectedDateString = ref('')
 const userTimezone = ref('')
@@ -1218,22 +1244,32 @@ onMounted(async () => {
   }
 })
 
-watch(currentStep, (step) => {
-  if (step === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    generateAvailableDates()
-    if (availableDates.value.length > 0 && !selectedDateString.value) {
-      selectDate(availableDates.value[0])
-    }
-    fetchActiveSlots()
+watch(selectedDateString, (newDateString, oldDateString) => {
+  console.log('Date changed from', oldDateString, 'to', newDateString)
+  selectedSlot.value = ''
+  if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
+    console.log('Fetching slots for new date:', newDateString)
+    fetchSlotsForDate(newDateString)
+  } else {
+    console.log('Clearing slots - missing requirements:', {
+      dateString: newDateString,
+      step: currentStep.value,
+      service: selectedService.value,
+      staff: selectedStaff.value
+    })
+    slotsForDate.value = []
   }
 })
 
-watch(selectedDateString, (newDateString) => {
-  selectedSlot.value = ''
-  if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    fetchSlotsForDate(newDateString)
-  } else {
-    slotsForDate.value = []
+watch(currentStep, (step) => {
+  console.log('Step changed to:', step)
+  if (step === 'StepDateTime' && selectedService.value && selectedStaff.value) {
+    generateAvailableDates()
+    if (availableDates.value.length > 0 && !selectedDateString.value) {
+      console.log('Auto-selecting first available date')
+      selectDate(availableDates.value[0])
+    }
+    fetchActiveSlots()
   }
 })
 
