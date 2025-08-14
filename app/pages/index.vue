@@ -1315,37 +1315,66 @@ function goToNextStepDateTime() {
   }
 }
 
+// Cache for contactId by email
+const contactIdCacheKey = 'restyle_contact_ids_by_email'
+
+// Utility to get/set contactId by email in localStorage
+function getContactIdByEmail(email) {
+  if (!email) return null
+  try {
+    const map = JSON.parse(localStorage.getItem(contactIdCacheKey) || '{}')
+    return map[email.toLowerCase()] || null
+  } catch {
+    return null
+  }
+}
+function setContactIdForEmail(email, contactId) {
+  if (!email || !contactId) return
+  try {
+    const map = JSON.parse(localStorage.getItem(contactIdCacheKey) || '{}')
+    map[email.toLowerCase()] = contactId
+    localStorage.setItem(contactIdCacheKey, JSON.stringify(map))
+  } catch {}
+}
+
 async function handleInformationSubmit() {
   if (!validateForm()) {
     return
   }
 
   bookingLoading.value = true
-  
+
   try {
-    // 1. Create contact
-    const params = new URLSearchParams({
-      firstName: contactForm.value.firstName,
-      lastName: contactForm.value.lastName,
-      email: contactForm.value.email,
-      phone: contactForm.value.phone,
-      notes: contactForm.value.notes || 'From landing page'
-    })
+    // 1. Try to get contactId from localStorage by email
+    let contactId = getContactIdByEmail(contactForm.value.email)
+    if (!contactId) {
+      // Create contact if not found
+      const params = new URLSearchParams({
+        firstName: contactForm.value.firstName,
+        lastName: contactForm.value.lastName,
+        email: contactForm.value.email,
+        phone: contactForm.value.phone,
+        notes: contactForm.value.notes || 'From landing page'
+      })
 
-    console.log('Creating contact with params:', params.toString())
-    const contactRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/createContact?${params.toString()}`)
-    const contactData = await contactRes.json()
-    console.log('Contact creation response:', contactData)
+      console.log('Creating contact with params:', params.toString())
+      const contactRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/createContact?${params.toString()}`)
+      const contactData = await contactRes.json()
+      console.log('Contact creation response:', contactData)
 
-    if (!contactData.success || !contactData.contact?.contact?.id) {
-      throw new Error('Contact creation failed')
+      if (!contactData.success || !contactData.contact?.contact?.id) {
+        throw new Error('Contact creation failed')
+      }
+
+      contactId = contactData.contact.contact.id
+      setContactIdForEmail(contactForm.value.email, contactId)
+    } else {
+      console.log('Using cached contactId:', contactId)
     }
-
-    const contactId = contactData.contact.contact.id
 
     // 2. Book appointment
     const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
-    
+
     // Parse selectedSlot time
     const slotMatch = selectedSlot.value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
     let hour = 9, minute = 0
@@ -1359,11 +1388,11 @@ async function handleInformationSubmit() {
 
     // Set the time in MST (UTC-7)
     jsDate.setHours(hour, minute, 0, 0)
-    
+
     // Convert MST to UTC for API
     const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
     const utcStartTime = new Date(jsDate.getTime() - mstOffset)
-    
+
     // Get service duration
     const duration = parseInt(getServiceDuration(selectedService.value)) || 120
     const utcEndTime = new Date(utcStartTime.getTime() + duration * 60 * 1000)
@@ -1371,19 +1400,38 @@ async function handleInformationSubmit() {
     const startTime = utcStartTime.toISOString()
     const endTime = utcEndTime.toISOString()
 
-    console.log('Booking appointment with:', {
-      contactId,
-      calendarId: selectedService.value,
-      startTime,
-      endTime,
-      selectedSlot: selectedSlot.value,
-      duration
-    })
+    // --- Assign staff logic ---
+    let assignedUserId = selectedStaff.value
+    if (assignedUserId === 'any' || !assignedUserId) {
+      // Find a random staff from the selected service's teamMembers
+      let staffList = []
+      // Find the service object (from serviceRadioItems or fetch)
+      let serviceObj = null
+      if (serviceRadioItems.value.length) {
+        serviceObj = serviceRadioItems.value.find(s => s.value === selectedService.value)
+      }
+      // If not found, fetch service details
+      if (!serviceObj) {
+        try {
+          const groupId = selectedDepartment.value
+          const res = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getDynamicService?id=${groupId}`)
+          const data = await res.json()
+          serviceObj = (data.calendars || []).find(s => s.id === selectedService.value)
+        } catch {}
+      }
+      if (serviceObj && serviceObj.teamMembers && serviceObj.teamMembers.length > 0) {
+        staffList = serviceObj.teamMembers
+      }
+      if (staffList.length > 0) {
+        // Pick a random staff
+        const randomStaff = staffList[Math.floor(Math.random() * staffList.length)]
+        assignedUserId = randomStaff.userId
+      } else {
+        throw new Error('No staff available for this service')
+      }
+    }
 
-    const calendarId = selectedService.value
-    const assignedUserId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-
-    let bookUrl = `https://restyle-api.netlify.app/.netlify/functions/bookAppointment?contactId=${contactId}&calendarId=${calendarId}&startTime=${startTime}&endTime=${endTime}`
+    let bookUrl = `https://restyle-api.netlify.app/.netlify/functions/bookAppointment?contactId=${contactId}&calendarId=${selectedService.value}&startTime=${startTime}&endTime=${endTime}`
     if (assignedUserId) bookUrl += `&assignedUserId=${assignedUserId}`
 
     console.log('Booking URL:', bookUrl)
@@ -1397,7 +1445,7 @@ async function handleInformationSubmit() {
 
     bookingResponse.value = bookData.response
     currentStep.value = 'StepSuccess'
-    
+
   } catch (err) {
     console.error('Booking error:', err)
   } finally {
