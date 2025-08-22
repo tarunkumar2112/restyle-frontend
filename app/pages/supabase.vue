@@ -869,8 +869,9 @@ function filterSlotsByBusinessHours(slots, date) {
 // Fetch groups for department radio
 onMounted(async () => {
   try {
-    const res = await fetch('https://restyle-api.netlify.app/.netlify/functions/Groups')
+    const res = await fetch('https://restyle-api.netlify.app/.netlify/functions/supabasegroups')
     const data = await res.json()
+
     departmentRadioItems.value = data.groups.map(group => ({
       label: group.name,
       value: group.id,
@@ -878,6 +879,7 @@ onMounted(async () => {
       icon: getGroupIcon(group.name)
     }))
     selectedDepartment.value = ''
+
     groupTabs.value = data.groups.map(group => ({
       label: group.name,
       value: group.id,
@@ -892,6 +894,7 @@ onMounted(async () => {
     loadingGroups.value = false
   }
 })
+
 
 watch(selectedDepartment, async (groupId) => {
   if (!groupId) return
