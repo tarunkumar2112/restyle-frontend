@@ -1374,23 +1374,34 @@ async function handleInformationSubmit() {
       })
 
       console.log('Creating contact with params:', params.toString())
-      const contactRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/customer?${params.toString()}`)
+      const contactRes = await fetch(
+        `https://restyle-api.netlify.app/.netlify/functions/customer?${params.toString()}`
+      )
       const contactData = await contactRes.json()
       console.log('Contact creation response:', contactData)
 
-      if (!contactData.success || !contactData.contact?.contact?.id) {
+      // ✅ Handle duplicate contact fallback
+      if (
+        contactData?.details?.message ===
+          'This location does not allow duplicated contacts.' &&
+        contactData?.details?.meta?.contactId
+      ) {
+        console.warn('Duplicate detected, using existing contactId')
+        contactId = contactData.details.meta.contactId
+        setContactIdForEmail(contactForm.value.email, contactId)
+      } else if (!contactData.success || !contactData.contact?.contact?.id) {
         throw new Error('Contact creation failed')
+      } else {
+        contactId = contactData.contact.contact.id
+        setContactIdForEmail(contactForm.value.email, contactId)
       }
-
-      contactId = contactData.contact.contact.id
-      setContactIdForEmail(contactForm.value.email, contactId)
     } else {
       console.log('Using cached contactId:', contactId)
     }
 
     // 2. Book appointment
     const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
-    // Parse selectedSlot time
+
     const slotMatch = selectedSlot.value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
     let hour = 9, minute = 0
     if (slotMatch) {
@@ -1401,28 +1412,25 @@ async function handleInformationSubmit() {
       if (period === 'AM' && hour === 12) hour = 0
     }
 
-    // Set the time in MST (UTC-7)
     jsDate.setHours(hour, minute, 0, 0)
 
-    // Convert MST to UTC for API
-    const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
+    const mstOffset = -7 * 60 * 60 * 1000
     const utcStartTime = new Date(jsDate.getTime() - mstOffset)
 
-    // Get service duration
     const duration = parseInt(getServiceDuration(selectedService.value)) || 120
     const utcEndTime = new Date(utcStartTime.getTime() + duration * 60 * 1000)
 
     const startTime = utcStartTime.toISOString()
     const endTime = utcEndTime.toISOString()
 
-    // --- Assign staff logic ---
     let assignedUserId = selectedStaff.value
-    // If user selected "Any available staff", pick a random real staff from staffRadioItems (excluding "any")
     if (assignedUserId === 'any' || !assignedUserId) {
-      // staffRadioItems: first is "any", rest are real staff
-      const realStaff = staffRadioItems.value.filter(item => item.value !== 'any')
+      const realStaff = staffRadioItems.value.filter(
+        (item) => item.value !== 'any'
+      )
       if (realStaff.length > 0) {
-        const randomStaff = realStaff[Math.floor(Math.random() * realStaff.length)]
+        const randomStaff =
+          realStaff[Math.floor(Math.random() * realStaff.length)]
         assignedUserId = randomStaff.value
       } else {
         throw new Error('No staff available for this service')
@@ -1443,13 +1451,13 @@ async function handleInformationSubmit() {
 
     bookingResponse.value = bookData.response
     currentStep.value = 'StepSuccess'
-
   } catch (err) {
     console.error('Booking error:', err)
   } finally {
     bookingLoading.value = false
   }
 }
+
 
 function resetBooking() {
   // Reset all form data
