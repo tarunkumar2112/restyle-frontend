@@ -610,16 +610,7 @@
     Book Another Appointment
   </UButton>
 
-  <UButton
-    color="primary"
-    size="lg"
-    :href="`https://restyle-93b772.webflow.io/bookings?id=${finalContactId}`"
-    target="_blank"
-    class="bg-red-700 hover:bg-red-700 text-white"
-  >
-    <UIcon name="i-lucide-home" class="mr-2" />
-    See Your Bookings
-  </UButton>
+
 </div>
 
             </div>
