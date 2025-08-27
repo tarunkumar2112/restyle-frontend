@@ -599,16 +599,29 @@
                   </div>
                 </div>
               </div>
-              
-              <UButton
-                color="primary"
-                size="lg"
-                @click="resetBooking"
-                class="mt-6 bg-red-700 hover:bg-red-700 text-white"
-              >
-                <UIcon name="i-lucide-plus" class="mr-2" />
-                Book Another Appointment
-              </UButton>
+              <div class="flex gap-4 mt-6">
+  <UButton
+    color="primary"
+    size="lg"
+    @click="resetBooking"
+    class="bg-red-700 hover:bg-red-700 text-white"
+  >
+    <UIcon name="i-lucide-plus" class="mr-2" />
+    Book Another Appointment
+  </UButton>
+
+  <UButton
+    color="primary"
+    size="lg"
+    :href="`https://restyle-93b772.webflow.io/bookings?id=${finalContactId}`"
+    target="_blank"
+    class="bg-red-700 hover:bg-red-700 text-white"
+  >
+    <UIcon name="i-lucide-home" class="mr-2" />
+    See Your Bookings
+  </UButton>
+</div>
+
             </div>
           </template>
         </UStepper>
@@ -623,6 +636,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 import { useRoute } from 'vue-router'
+const finalContactId = ref(null)
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
@@ -1394,6 +1408,8 @@ async function handleInformationSubmit() {
       } else {
         contactId = contactData.contact.contact.id
         setContactIdForEmail(contactForm.value.email, contactId)
+        finalContactId.value = contactId
+
       }
     } else {
       console.log('Using cached contactId:', contactId)
