@@ -29,6 +29,30 @@
             </p>
           </div>
 
+          <!-- Added multistep progress indicator -->
+          <div class="mb-8">
+            <div class="flex items-center justify-center space-x-4">
+              <div v-for="(step, index) in steps" :key="index" class="flex items-center">
+                <div :class="[
+                  'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-200',
+                  currentStep >= index + 1 
+                    ? 'bg-red-700 text-white' 
+                    : 'bg-gray-200 text-gray-500'
+                ]">
+                  {{ index + 1 }}
+                </div>
+                <div v-if="index < steps.length - 1" :class="[
+                  'w-16 h-1 mx-2 transition-all duration-200',
+                  currentStep > index + 1 ? 'bg-red-700' : 'bg-gray-200'
+                ]"></div>
+              </div>
+            </div>
+            <div class="text-center mt-4">
+              <h2 class="text-xl font-bold text-black">{{ steps[currentStep - 1]?.title }}</h2>
+              <p class="text-gray-600 text-sm">{{ steps[currentStep - 1]?.description }}</p>
+            </div>
+          </div>
+
           <!-- Current appointment info -->
           <div class="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
             <h3 class="font-bold text-lg text-black mb-4">Current Appointment</h3>
@@ -52,10 +76,10 @@
             </div>
           </div>
 
-          <!-- Update form -->
+          <!-- Wrapped form sections in step-based conditional rendering -->
           <div class="space-y-8">
-            <!-- Staff Selection -->
-            <div class="space-y-6">
+            <!-- Step 1: Staff Selection -->
+            <div v-if="currentStep === 1" class="space-y-6">
               <div class="text-center">
                 <h2 class="text-2xl font-bold text-black mb-2">Change Stylist</h2>
                 <p class="text-gray-700">Select a different stylist or keep current assignment</p>
@@ -101,8 +125,8 @@
               </div>
             </div>
 
-            <!-- Date & Time Selection -->
-            <div class="space-y-6">
+            <!-- Step 2: Date & Time Selection -->
+            <div v-if="currentStep === 2" class="space-y-6">
               <div class="text-center">
                 <h2 class="text-2xl font-bold text-black mb-2">Change Date & Time</h2>
                 <p class="text-gray-700">Select a new appointment slot</p>
@@ -212,9 +236,102 @@
               </div>
             </div>
 
-            <!-- Update Button -->
+            <!-- Step 3: Review & Confirm -->
+            <div v-if="currentStep === 3" class="space-y-6">
+              <div class="text-center">
+                <h2 class="text-2xl font-bold text-black mb-2">Review Changes</h2>
+                <p class="text-gray-700">Confirm your appointment updates</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Current vs New Comparison -->
+                <div class="space-y-4">
+                  <h3 class="font-bold text-lg text-black">Current Appointment</h3>
+                  <div class="p-4 bg-gray-50 rounded-lg space-y-3">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-user" class="text-gray-600" />
+                      <span class="text-sm">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-calendar" class="text-gray-600" />
+                      <span class="text-sm">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-clock" class="text-gray-600" />
+                      <span class="text-sm">{{ formatAppointmentTime(currentAppointment.startTime) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <h3 class="font-bold text-lg text-black">New Appointment</h3>
+                  <div class="p-4 bg-red-50 rounded-lg space-y-3 border border-red-200">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-user" class="text-red-700" />
+                      <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
+                      <span v-if="selectedStaff !== currentAppointment.assignedUserId" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-calendar" class="text-red-700" />
+                      <span class="text-sm font-medium">{{ formatDateForDisplay(selectedDateString) }}</span>
+                      <span v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-lucide-clock" class="text-red-700" />
+                      <span class="text-sm font-medium">{{ selectedSlot }}</span>
+                      <span v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Changes Summary -->
+              <div v-if="hasChanges" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 class="font-bold text-blue-800 mb-2">Summary of Changes:</h4>
+                <ul class="text-sm text-blue-700 space-y-1">
+                  <li v-if="selectedStaff !== currentAppointment.assignedUserId">
+                    • Stylist changed to {{ getSelectedStaffName() }}
+                  </li>
+                  <li v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)">
+                    • Date changed to {{ formatDateForDisplay(selectedDateString) }}
+                  </li>
+                  <li v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)">
+                    • Time changed to {{ selectedSlot }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Added step navigation buttons -->
             <div class="flex gap-4 pt-6">
               <UButton
+                v-if="currentStep > 1"
+                type="button"
+                color="gray"
+                variant="soft"
+                size="lg"
+                class="flex-1"
+                @click="previousStep"
+              >
+                <UIcon name="i-lucide-chevron-left" class="mr-2" />
+                Previous
+              </UButton>
+              
+              <UButton
+                v-if="currentStep < 3"
+                type="button"
+                color="primary"
+                size="lg"
+                class="flex-1 bg-red-700 hover:bg-red-700 text-white"
+                @click="nextStep"
+                :disabled="!canProceedToNextStep"
+              >
+                Next
+                <UIcon name="i-lucide-chevron-right" class="ml-2" />
+              </UButton>
+
+              <UButton
+                v-if="currentStep === 3"
                 type="button"
                 color="gray"
                 variant="soft"
@@ -225,7 +342,9 @@
                 <UIcon name="i-lucide-rotate-ccw" class="mr-2" />
                 Reset Changes
               </UButton>
+              
               <UButton
+                v-if="currentStep === 3"
                 type="button"
                 color="primary"
                 size="lg"
@@ -258,6 +377,13 @@ import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+
+const currentStep = ref(1)
+const steps = ref([
+  { title: 'Choose Stylist', description: 'Select your preferred stylist' },
+  { title: 'Pick Date & Time', description: 'Choose your appointment slot' },
+  { title: 'Review & Confirm', description: 'Confirm your changes' }
+])
 
 // State management
 const appointmentId = ref('')
@@ -303,6 +429,16 @@ const hasChanges = computed(() => {
   return staffChanged || timeChanged || dateChanged
 })
 
+const canProceedToNextStep = computed(() => {
+  if (currentStep.value === 1) {
+    return selectedStaff.value !== ''
+  }
+  if (currentStep.value === 2) {
+    return selectedDateString.value !== '' && selectedSlot.value !== ''
+  }
+  return true
+})
+
 // Initialize component
 onMounted(async () => {
   appointmentId.value = route.query.id
@@ -321,32 +457,48 @@ onMounted(async () => {
 // Fetch appointment details
 async function fetchAppointmentDetails() {
   try {
-    // You'll need to implement an API endpoint to fetch appointment details by ID
-    // For now, using a placeholder structure
     const response = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getBooking?id=${appointmentId.value}`)
     const data = await response.json()
     
-    if (data.success && data.appointment) {
-      currentAppointment.value = data.appointment
+    console.log('[v0] API Response:', data) // Debug log to see actual response structure
+    
+    let appointmentData = null
+    
+    // Handle different response structures
+    if (data && data.appointment) {
+      // Response has appointment nested under 'appointment' property
+      appointmentData = data.appointment
+      console.log('[v0] Found appointment in nested structure:', appointmentData)
+    } else if (data && data.id) {
+      // Response has appointment data directly on root
+      appointmentData = data
+      console.log('[v0] Found appointment in root structure:', appointmentData)
+    }
+    
+    if (appointmentData && appointmentData.id) {
+      currentAppointment.value = appointmentData
       
       // Pre-populate form with current values
-      selectedStaff.value = data.appointment.assignedUserId || 'any'
+      selectedStaff.value = appointmentData.assignedUserId || 'any'
       
       // Set current date and time
-      const appointmentDate = new Date(data.appointment.startTime)
+      const appointmentDate = new Date(appointmentData.startTime)
       const dateString = appointmentDate.toISOString().split('T')[0]
       selectedDateString.value = dateString
       
       const [year, month, day] = dateString.split('-').map(Number)
       selectedCalendarDate.value = new CalendarDate(year, month, day)
       
-      selectedSlot.value = formatAppointmentTime(data.appointment.startTime)
-      calendarId.value = data.appointment.calendarId
+      selectedSlot.value = formatAppointmentTime(appointmentData.startTime)
+      calendarId.value = appointmentData.calendarId
+      
+      console.log('[v0] Appointment loaded successfully:', appointmentData.id)
     } else {
-      appointmentError.value = 'Appointment not found'
+      console.log('[v0] Invalid response structure - no appointment found:', data)
+      appointmentError.value = 'Appointment not found or invalid response'
     }
   } catch (error) {
-    console.error('Error fetching appointment:', error)
+    console.error('[v0] Error fetching appointment:', error)
     appointmentError.value = 'Failed to load appointment details'
   } finally {
     loadingAppointment.value = false
@@ -648,6 +800,23 @@ function isSlotInPastMST(timeSlot, dateString) {
   slotDate.setHours(hour, minute, 0, 0)
   
   return slotDate < now
+}
+
+function getSelectedStaffName() {
+  const staff = staffRadioItems.value.find(item => item.value === selectedStaff.value)
+  return staff ? staff.label : 'Any available staff'
+}
+
+function nextStep() {
+  if (canProceedToNextStep.value && currentStep.value < 3) {
+    currentStep.value++
+  }
+}
+
+function previousStep() {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
 }
 
 // Watch for staff changes to refresh slots
