@@ -477,24 +477,25 @@
                         />
                       </div>
                       <div>
-                        <UInput
-                          v-model="contactForm.phone"
-                          label="Phone Number"
-                          placeholder="(555) 123-4567"
-                          size="lg"
-                          :error="validationErrors.phone"
-                          required
-                        />
+                     <UInput
+  v-model="contactForm.phone"
+  label="Phone Number"
+  placeholder="+1 (555) 123-4567"
+  size="lg"
+  :error="validationErrors.phone"
+  required
+  pattern="^(\+1)?\s?\(?[2-9][0-9]{2}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$"
+/>
+
                       </div>
                       <div>
                         <UInput
                           v-model="contactForm.email"
                           label="Email Address"
-                          placeholder="your@email.com"
+                          placeholder="your@email.com[optional]"
                           type="email"
                           size="lg"
                           :error="validationErrors.email"
-                          required
                         />
                       </div>
                     </div>
