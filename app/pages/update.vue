@@ -1,0 +1,704 @@
+<template>
+  <div class="min-h-screen bg-white book-main">
+    <div class="flex flex-col items-center gap-6 pb-16 px-4">
+      <!-- Loading state while fetching appointment data -->
+      <div v-if="loadingAppointment" class="w-full max-w-4xl flex items-center justify-center py-20">
+        <div class="text-center space-y-4">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-700 mx-auto"></div>
+          <p class="text-gray-600">Loading appointment details...</p>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="appointmentError" class="w-full max-w-4xl text-center py-20">
+        <div class="space-y-4">
+          <UIcon name="i-lucide-alert-circle" class="text-4xl text-red-500 mx-auto" />
+          <h2 class="text-2xl font-bold text-black">Appointment Not Found</h2>
+          <p class="text-gray-600">{{ appointmentError }}</p>
+        </div>
+      </div>
+
+      <!-- Update form -->
+      <div v-else class="w-full max-w-4xl overflow-hidden department-block">
+        <div class="p-8 department-inner">
+          <!-- Header -->
+          <div class="text-center mb-8">
+            <h1 class="font-bold text-4xl mb-3 text-black">Update Your Appointment</h1>
+            <p class="text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">
+              Modify your appointment details below
+            </p>
+          </div>
+
+          <!-- Current appointment info -->
+          <div class="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <h3 class="font-bold text-lg text-black mb-4">Current Appointment</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-calendar" class="text-red-700" />
+                <span class="text-black font-medium">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-clock" class="text-red-700" />
+                <span class="text-black font-medium">{{ formatAppointmentTime(currentAppointment.startTime) }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-user" class="text-red-700" />
+                <span class="text-black font-medium">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-scissors" class="text-red-700" />
+                <span class="text-black font-medium">{{ currentAppointment.title }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Update form -->
+          <div class="space-y-8">
+            <!-- Staff Selection -->
+            <div class="space-y-6">
+              <div class="text-center">
+                <h2 class="text-2xl font-bold text-black mb-2">Change Stylist</h2>
+                <p class="text-gray-700">Select a different stylist or keep current assignment</p>
+              </div>
+
+              <div v-if="loadingStaff" class="space-y-4">
+                <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 3" :key="i" />
+              </div>
+              <div v-else class="grid gap-4 same-block-content">
+                <div
+                  v-for="item in staffRadioItems"
+                  :key="item.value"
+                  @click="selectStaff(item.value)"
+                  :class="[
+                    'cursor-pointer p-6 border-1 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
+                    selectedStaff === item.value
+                      ? 'bg-red-50 text-black border-red-700 shadow-sm'
+                      : 'bg-white text-black border-gray-200 hover:border-red-300'
+                  ]"
+                >
+                  <div class="flex items-center gap-4">
+                    <div :class="[
+                      'p-3 rounded-full',
+                      selectedStaff === item.value ? 'bg-red-100' : 'bg-gray-100'
+                    ]">
+                      <UIcon :name="item.icon" :class="[
+                        'text-2xl',
+                        selectedStaff === item.value ? 'text-red-700' : 'text-gray-600'
+                      ]" />
+                    </div>
+                    <div>
+                      <span class="text-xl font-semibold text-black">{{ item.label }}</span>
+                      <span v-if="item.badge" :class="[
+                        'ml-3 px-3 py-1 rounded-full text-xs font-medium',
+                        selectedStaff === item.value ? 'bg-red-100 text-red-700' : 'bg-red-500 text-white'
+                      ]">{{ item.badge }}</span>
+                    </div>
+                  </div>
+                  <div v-if="selectedStaff === item.value" class="text-red-700">
+                    <UIcon name="i-lucide-check-circle" class="text-2xl" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Date & Time Selection -->
+            <div class="space-y-6">
+              <div class="text-center">
+                <h2 class="text-2xl font-bold text-black mb-2">Change Date & Time</h2>
+                <p class="text-gray-700">Select a new appointment slot</p>
+              </div>
+
+              <!-- Timezone indicator -->
+              <div class="text-center mb-6">
+                <div class="text-sm font-medium text-gray-600 uppercase tracking-wide">
+                  TIME ZONE: MOUNTAIN TIME - EDMONTON (GMT-06:00)
+                </div>
+              </div>
+
+              <!-- Date Slider -->
+              <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-6">
+                  <UButton
+                    variant="ghost"
+                    size="sm"
+                    @click="navigateDate(-1)"
+                    :disabled="currentDateIndex <= 0"
+                    class="p-2"
+                  >
+                    <UIcon name="i-lucide-chevron-left" class="text-xl" />
+                  </UButton>
+                  
+                  <div class="flex-1 grid grid-cols-3 gap-4 mx-4">
+                    <div
+                      v-for="(dateInfo, index) in visibleDates"
+                      :key="dateInfo.dateString"
+                      @click="selectDate(dateInfo)"
+                      :class="[
+                        'p-4 rounded-lg border-2 transition-all duration-200 text-center cursor-pointer hover:shadow-md',
+                        selectedDateString === dateInfo.dateString
+                          ? 'border-red-700 bg-red-50'
+                          : 'border-gray-200 bg-gray-50 hover:border-red-300'
+                      ]"
+                    >
+                      <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                        {{ dateInfo.label }}
+                      </div>
+                      <div class="font-bold text-lg text-black">
+                        {{ dateInfo.dayName }}
+                      </div>
+                      <div class="text-sm text-gray-600">
+                        {{ dateInfo.dateDisplay }}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <UButton
+                    variant="ghost"
+                    size="sm"
+                    @click="navigateDate(1)"
+                    :disabled="currentDateIndex >= availableDates.length - 3"
+                    class="p-2"
+                  >
+                    <UIcon name="i-lucide-chevron-right" class="text-xl" />
+                  </UButton>
+                </div>
+              </div>
+
+              <!-- Time slots -->
+              <div class="space-y-4 times-block">
+                <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm min-h-[400px]">
+                  <div v-if="loadingSlots" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                      <USkeleton class="h-12 rounded-lg bg-gray-100" v-for="i in 8" :key="i" />
+                    </div>
+                  </div>
+                  <div v-else-if="enabledSlotsForDate.length > 0" class="space-y-4">
+                    <div class="text-sm text-gray-600 mb-3">
+                      Available slots for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                      <UButton
+                        v-for="slot in enabledSlotsForDate"
+                        :key="slot.time"
+                        :color="selectedSlot === slot.time ? 'primary' : 'gray'"
+                        :variant="selectedSlot === slot.time ? 'solid' : 'soft'"
+                        size="sm"
+                        class="py-3 transition-all duration-200 text-black border border-gray-300 rounded-lg justify-center hover:shadow-sm"
+                        @click="selectTimeSlot(slot.time)"
+                        :class="[
+                          selectedSlot === slot.time ? 'bg-red-700 hover:bg-red-700 text-white border-red-700 shadow-sm' : 'hover:border-red-300'
+                        ]"
+                      >
+                        {{ slot.time }}
+                      </UButton>
+                    </div>
+                  </div>
+                  <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
+                    <UIcon name="i-lucide-calendar-x" class="text-4xl" />
+                    <div class="text-center">
+                      <p class="font-medium text-black">{{ selectedDateString ? 'No slots available' : 'Select a date first' }}</p>
+                      <p class="text-sm text-gray-600">{{ selectedDateString ? 'Try choosing a different date' : 'Choose a date to see available times' }}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-if="selectedSlot" class="p-4 bg-red-50 rounded-xl border border-red-200">
+                  <div class="text-center">
+                    <div class="font-bold text-black text-lg">New Selected Time</div>
+                    <div class="text-red-700 font-semibold">{{ selectedSlot }} MST</div>
+                    <div class="text-sm text-gray-600 mt-1">{{ formatDateForDisplay(selectedDateString) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Update Button -->
+            <div class="flex gap-4 pt-6">
+              <UButton
+                type="button"
+                color="gray"
+                variant="soft"
+                size="lg"
+                class="flex-1"
+                @click="resetForm"
+              >
+                <UIcon name="i-lucide-rotate-ccw" class="mr-2" />
+                Reset Changes
+              </UButton>
+              <UButton
+                type="button"
+                color="primary"
+                size="lg"
+                :loading="updateLoading"
+                :disabled="!hasChanges"
+                class="flex-1 bg-red-700 hover:bg-red-700 text-white"
+                @click="updateAppointment"
+              >
+                <UIcon name="i-lucide-save" class="mr-2" />
+                {{ updateLoading ? 'Updating...' : 'Update Appointment' }}
+              </UButton>
+            </div>
+
+            <!-- Success message -->
+            <div v-if="updateSuccess" class="p-6 bg-green-50 rounded-xl border border-green-200 text-center">
+              <UIcon name="i-lucide-check-circle" class="text-3xl text-green-600 mx-auto mb-2" />
+              <h3 class="font-bold text-lg text-green-800 mb-1">Appointment Updated Successfully!</h3>
+              <p class="text-green-700">Your appointment has been updated with the new details.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+// State management
+const appointmentId = ref('')
+const currentAppointment = ref({})
+const loadingAppointment = ref(true)
+const appointmentError = ref('')
+
+// Form state
+const selectedStaff = ref('')
+const staffRadioItems = ref([])
+const loadingStaff = ref(false)
+
+const selectedCalendarDate = ref(null)
+const selectedDateString = ref('')
+const selectedSlot = ref('')
+const slotsForDate = ref([])
+const loadingSlots = ref(false)
+
+const activeSlots = ref({})
+const activeDay = ref('')
+const calendarId = ref('')
+
+const updateLoading = ref(false)
+const updateSuccess = ref(false)
+
+// Date navigation
+const availableDates = ref([])
+const currentDateIndex = ref(0)
+
+const visibleDates = computed(() => {
+  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
+})
+
+const enabledSlotsForDate = computed(() => {
+  return slotsForDate.value.filter(slot => !slot.isPast)
+})
+
+const hasChanges = computed(() => {
+  const staffChanged = selectedStaff.value !== currentAppointment.value.assignedUserId
+  const timeChanged = selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime)
+  const dateChanged = selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)
+  
+  return staffChanged || timeChanged || dateChanged
+})
+
+// Initialize component
+onMounted(async () => {
+  appointmentId.value = route.query.id
+  if (!appointmentId.value) {
+    appointmentError.value = 'No appointment ID provided in URL'
+    loadingAppointment.value = false
+    return
+  }
+  
+  await fetchAppointmentDetails()
+  await fetchStaffOptions()
+  await fetchActiveSlots()
+  generateAvailableDates()
+})
+
+// Fetch appointment details
+async function fetchAppointmentDetails() {
+  try {
+    // You'll need to implement an API endpoint to fetch appointment details by ID
+    // For now, using a placeholder structure
+    const response = await fetch(`https://restyle-api.netlify.app/.netlify/functions/getBooking?id=${appointmentId.value}`)
+    const data = await response.json()
+    
+    if (data.success && data.appointment) {
+      currentAppointment.value = data.appointment
+      
+      // Pre-populate form with current values
+      selectedStaff.value = data.appointment.assignedUserId || 'any'
+      
+      // Set current date and time
+      const appointmentDate = new Date(data.appointment.startTime)
+      const dateString = appointmentDate.toISOString().split('T')[0]
+      selectedDateString.value = dateString
+      
+      const [year, month, day] = dateString.split('-').map(Number)
+      selectedCalendarDate.value = new CalendarDate(year, month, day)
+      
+      selectedSlot.value = formatAppointmentTime(data.appointment.startTime)
+      calendarId.value = data.appointment.calendarId
+    } else {
+      appointmentError.value = 'Appointment not found'
+    }
+  } catch (error) {
+    console.error('Error fetching appointment:', error)
+    appointmentError.value = 'Failed to load appointment details'
+  } finally {
+    loadingAppointment.value = false
+  }
+}
+
+// Fetch staff options for the service
+async function fetchStaffOptions() {
+  if (!currentAppointment.value.calendarId) return
+  
+  loadingStaff.value = true
+  try {
+    // Fetch service details to get team members
+    const serviceRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Services?id=${currentAppointment.value.groupId || 'default'}`)
+    const serviceData = await serviceRes.json()
+    
+    const serviceObj = (serviceData.calendars || []).find(s => s.id === currentAppointment.value.calendarId)
+    const teamMembers = serviceObj?.teamMembers || []
+
+    const items = [{
+      label: 'Any available staff',
+      value: 'any',
+      badge: 'Recommended',
+      icon: 'i-lucide-user'
+    }]
+
+    const staffPromises = teamMembers.map(async member => {
+      try {
+        const staffRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Staff?id=${member.userId}`)
+        const staffData = await staffRes.json()
+        return {
+          label: staffData.name,
+          value: staffData.id,
+          icon: 'i-lucide-user'
+        }
+      } catch (e) {
+        return null
+      }
+    })
+
+    const staffResults = await Promise.all(staffPromises)
+    const validStaff = staffResults.filter(Boolean)
+    
+    staffRadioItems.value = [...items, ...validStaff]
+  } catch (error) {
+    console.error('Error fetching staff:', error)
+    staffRadioItems.value = [{
+      label: 'Any available staff',
+      value: 'any',
+      badge: 'Recommended',
+      icon: 'i-lucide-user'
+    }]
+  } finally {
+    loadingStaff.value = false
+  }
+}
+
+// Fetch active slots
+async function fetchActiveSlots() {
+  if (!currentAppointment.value.calendarId) return
+  
+  loadingSlots.value = true
+  
+  const serviceId = currentAppointment.value.calendarId
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Activeslots?calendarId=${serviceId}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  try {
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+
+    if (data.slots && data.activeDay && data.calendarId) {
+      activeSlots.value = data.slots
+      activeDay.value = data.activeDay
+      
+      // Update slots for current selected date
+      if (selectedDateString.value && data.slots[selectedDateString.value]) {
+        const slotsForSelectedDate = data.slots[selectedDateString.value] || []
+        const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+          time: slot,
+          isPast: isSlotInPastMST(slot, selectedDateString.value)
+        }))
+        slotsForDate.value = slotsWithStatus
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching active slots:', error)
+    slotsForDate.value = []
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
+// Generate available dates (next 30 days)
+function generateAvailableDates() {
+  const dates = []
+  const today = new Date()
+  
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+    
+    const dateString = date.toISOString().split('T')[0]
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    dates.push({
+      dateString,
+      dayName: dayNames[date.getDay()],
+      dateDisplay: `${monthNames[date.getMonth()]} ${date.getDate()}`,
+      label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayNames[date.getDay()]
+    })
+  }
+  
+  availableDates.value = dates
+}
+
+// Event handlers
+function selectStaff(staffId) {
+  selectedStaff.value = staffId
+  fetchActiveSlots() // Refresh slots when staff changes
+}
+
+function selectDate(dateInfo) {
+  selectedDateString.value = dateInfo.dateString
+  const [year, month, day] = dateInfo.dateString.split('-').map(Number)
+  selectedCalendarDate.value = new CalendarDate(year, month, day)
+  
+  // Update slots for selected date
+  if (activeSlots.value[dateInfo.dateString]) {
+    const slotsForSelectedDate = activeSlots.value[dateInfo.dateString] || []
+    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateInfo.dateString)
+    }))
+    slotsForDate.value = slotsWithStatus
+  } else {
+    slotsForDate.value = []
+  }
+  
+  selectedSlot.value = '' // Reset selected slot when date changes
+}
+
+function selectTimeSlot(time) {
+  selectedSlot.value = time
+}
+
+function navigateDate(direction) {
+  const newIndex = currentDateIndex.value + direction
+  if (newIndex >= 0 && newIndex <= availableDates.value.length - 3) {
+    currentDateIndex.value = newIndex
+  }
+}
+
+function resetForm() {
+  // Reset to original appointment values
+  selectedStaff.value = currentAppointment.value.assignedUserId || 'any'
+  
+  const appointmentDate = new Date(currentAppointment.value.startTime)
+  const dateString = appointmentDate.toISOString().split('T')[0]
+  selectedDateString.value = dateString
+  
+  const [year, month, day] = dateString.split('-').map(Number)
+  selectedCalendarDate.value = new CalendarDate(year, month, day)
+  
+  selectedSlot.value = formatAppointmentTime(currentAppointment.value.startTime)
+  updateSuccess.value = false
+}
+
+// Update appointment
+async function updateAppointment() {
+  if (!hasChanges.value) return
+  
+  updateLoading.value = true
+  updateSuccess.value = false
+  
+  try {
+    // Build update URL with only changed parameters
+    let updateUrl = `https://restyle-api.netlify.app/.netlify/functions/updateappointment?appointmentId=${appointmentId.value}`
+    
+    // Add time parameters if changed
+    if (selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime) || 
+        selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)) {
+      
+      const jsDate = new Date(selectedDateString.value + 'T00:00:00')
+      const slotMatch = selectedSlot.value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+      
+      if (slotMatch) {
+        let hour = parseInt(slotMatch[1])
+        const minute = parseInt(slotMatch[2])
+        const period = slotMatch[3].toUpperCase()
+        
+        if (period === 'PM' && hour !== 12) hour += 12
+        if (period === 'AM' && hour === 12) hour = 0
+        
+        jsDate.setHours(hour, minute, 0, 0)
+        
+        // Convert to UTC (MST is UTC-7)
+        const mstOffset = -7 * 60 * 60 * 1000
+        const utcStartTime = new Date(jsDate.getTime() - mstOffset)
+        
+        // Calculate end time (assuming same duration)
+        const originalStart = new Date(currentAppointment.value.startTime)
+        const originalEnd = new Date(currentAppointment.value.endTime)
+        const duration = originalEnd.getTime() - originalStart.getTime()
+        const utcEndTime = new Date(utcStartTime.getTime() + duration)
+        
+        updateUrl += `&startTime=${encodeURIComponent(utcStartTime.toISOString())}`
+        updateUrl += `&endTime=${encodeURIComponent(utcEndTime.toISOString())}`
+      }
+    }
+    
+    // Add staff parameter if changed
+    if (selectedStaff.value !== currentAppointment.value.assignedUserId) {
+      let assignedUserId = selectedStaff.value
+      if (assignedUserId === 'any') {
+        // Pick a random staff member
+        const realStaff = staffRadioItems.value.filter(item => item.value !== 'any')
+        if (realStaff.length > 0) {
+          assignedUserId = realStaff[Math.floor(Math.random() * realStaff.length)].value
+        }
+      }
+      updateUrl += `&assignedUserId=${assignedUserId}`
+    }
+    
+    console.log('Update URL:', updateUrl)
+    
+    const response = await fetch(updateUrl)
+    const data = await response.json()
+    
+    if (data.message && data.message.includes('successfully')) {
+      updateSuccess.value = true
+      // Update current appointment data
+      currentAppointment.value = { ...currentAppointment.value, ...data.response }
+    } else {
+      throw new Error(data.error || 'Update failed')
+    }
+    
+  } catch (error) {
+    console.error('Update error:', error)
+    alert('Failed to update appointment. Please try again.')
+  } finally {
+    updateLoading.value = false
+  }
+}
+
+// Utility functions
+function formatAppointmentDate(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+}
+
+function formatAppointmentTime(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  })
+}
+
+function formatAppointmentDateString(dateString) {
+  const date = new Date(dateString)
+  return date.toISOString().split('T')[0]
+}
+
+function formatDateForDisplay(dateString) {
+  const date = new Date(dateString + 'T00:00:00')
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+}
+
+function isSlotInPastMST(timeSlot, dateString) {
+  const now = new Date()
+  const slotDate = new Date(dateString + 'T00:00:00')
+  
+  const slotMatch = timeSlot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (!slotMatch) return false
+  
+  let hour = parseInt(slotMatch[1])
+  const minute = parseInt(slotMatch[2])
+  const period = slotMatch[3].toUpperCase()
+  
+  if (period === 'PM' && hour !== 12) hour += 12
+  if (period === 'AM' && hour === 12) hour = 0
+  
+  slotDate.setHours(hour, minute, 0, 0)
+  
+  return slotDate < now
+}
+
+// Watch for staff changes to refresh slots
+watch(selectedStaff, () => {
+  fetchActiveSlots()
+})
+</script>
+
+<style scoped>
+/* Reuse the same styles from the original supabase.vue */
+.book-main {
+  font-family: 'Inter', sans-serif;
+}
+
+.department-block {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.department-inner {
+  background: white;
+  border-radius: 16px;
+}
+
+.same-block-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.same-btn-prev-next {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.times-block {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .department-inner {
+    padding: 1.5rem;
+  }
+  
+  .same-btn-prev-next {
+    flex-direction: column;
+  }
+  
+  .times-block .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
