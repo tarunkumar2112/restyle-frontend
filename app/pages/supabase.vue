@@ -477,25 +477,21 @@
                         />
                       </div>
                       <div>
-                        <UInput
-                          v-model="contactForm.phone"
-                          label="Phone Number"
-                          placeholder="(555) 123-4567"
-                          size="lg"
-                          :error="validationErrors.phone"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <UInput
-                          v-model="contactForm.email"
-                          label="Email Address"
-                          placeholder="your@email.com"
-                          type="email"
-                          size="lg"
-                          :error="validationErrors.email"
-                          required
-                        />
+                        <!-- Phone input with country dropdown (USA only) and flag -->
+                        <div class="flex items-center gap-2">
+                          <select v-model="contactForm.countryCode" class="border rounded-lg px-2 py-1 bg-white text-black" style="width: 60px;">
+                            <option value="+1">🇺🇸 +1</option>
+                          </select>
+                          <UInput
+                            v-model="contactForm.phone"
+                            label="Phone Number"
+                            placeholder="(555) 123-4567"
+                            size="lg"
+                            :error="validationErrors.phone"
+                            required
+                            style="flex: 1;"
+                          />
+                        </div>
                       </div>
                     </div>
                     
@@ -674,15 +670,14 @@ const calendarId = ref('')
 const validationErrors = ref({
   firstName: '',
   lastName: '',
-  phone: '',
-  email: ''
+  phone: ''
 })
 
 const contactForm = ref({
   firstName: '',
   lastName: '',
   phone: '',
-  email: '',
+  countryCode: '+1', // USA only
   notes: '',
   optIn: false
 })
@@ -691,28 +686,20 @@ const isFormValid = computed(() => {
   return contactForm.value.firstName.trim() && 
          contactForm.value.lastName.trim() && 
          contactForm.value.phone.trim() && 
-         contactForm.value.email.trim() && 
-         isValidEmail(contactForm.value.email) && 
          isValidPhone(contactForm.value.phone)
 })
 
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
 function isValidPhone(phone) {
-  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/
+  // US phone validation: 10 digits, can include formatting
   const cleanPhone = phone.replace(/[\s\-()]/g, '')
-  return cleanPhone.length >= 10 && phoneRegex.test(cleanPhone)
+  return /^\d{10}$/.test(cleanPhone)
 }
 
 function validateForm() {
   validationErrors.value = {
     firstName: '',
     lastName: '',
-    phone: '',
-    email: ''
+    phone: ''
   }
 
   if (!contactForm.value.firstName.trim()) {
@@ -724,12 +711,7 @@ function validateForm() {
   if (!contactForm.value.phone.trim()) {
     validationErrors.value.phone = 'Phone number is required'
   } else if (!isValidPhone(contactForm.value.phone)) {
-    validationErrors.value.phone = 'Please enter a valid phone number'
-  }
-  if (!contactForm.value.email.trim()) {
-    validationErrors.value.email = 'Email is required'
-  } else if (!isValidEmail(contactForm.value.email)) {
-    validationErrors.value.email = 'Please enter a valid email address'
+    validationErrors.value.phone = 'Please enter a valid US phone number'
   }
 
   return Object.values(validationErrors.value).every(error => !error)
@@ -1366,45 +1348,25 @@ async function handleInformationSubmit() {
   bookingLoading.value = true
 
   try {
-    // 1. Try to get contactId from localStorage by email
-    let contactId = getContactIdByEmail(contactForm.value.email)
-    if (!contactId) {
-      // Create contact if not found
-      const params = new URLSearchParams({
-        firstName: contactForm.value.firstName,
-        lastName: contactForm.value.lastName,
-        email: contactForm.value.email,
-        phone: contactForm.value.phone,
-        notes: contactForm.value.notes || 'From landing page'
-      })
+    // 1. Create contact (no email)
+    const params = new URLSearchParams({
+      firstName: contactForm.value.firstName,
+      lastName: contactForm.value.lastName,
+      phone: contactForm.value.countryCode + contactForm.value.phone,
+      notes: contactForm.value.notes || 'From landing page'
+    })
 
-      console.log('Creating contact with params:', params.toString())
-      const contactRes = await fetch(
-        `https://restyle-api.netlify.app/.netlify/functions/customer?${params.toString()}`
-      )
-      const contactData = await contactRes.json()
-      console.log('Contact creation response:', contactData)
+    console.log('Creating contact with params:', params.toString())
+    const contactRes = await fetch(
+      `https://restyle-api.netlify.app/.netlify/functions/customer?${params.toString()}`
+    )
+    const contactData = await contactRes.json()
+    console.log('Contact creation response:', contactData)
 
-      // ✅ Handle duplicate contact fallback
-      if (
-        contactData?.details?.message ===
-          'This location does not allow duplicated contacts.' &&
-        contactData?.details?.meta?.contactId
-      ) {
-        console.warn('Duplicate detected, using existing contactId')
-        contactId = contactData.details.meta.contactId
-        setContactIdForEmail(contactForm.value.email, contactId)
-      } else if (!contactData.success || !contactData.contact?.contact?.id) {
-        throw new Error('Contact creation failed')
-      } else {
-        contactId = contactData.contact.contact.id
-        setContactIdForEmail(contactForm.value.email, contactId)
-        finalContactId.value = contactId
-
-      }
-    } else {
-      console.log('Using cached contactId:', contactId)
+    if (!contactData.success || !contactData.contact?.contact?.id) {
+      throw new Error('Contact creation failed')
     }
+    const contactId = contactData.contact.contact.id
 
     // 2. Book appointment
     const jsDate = calendarDateToJSDate(selectedCalendarDate.value)
@@ -1465,7 +1427,6 @@ async function handleInformationSubmit() {
   }
 }
 
-
 function resetBooking() {
   // Reset all form data
   currentStep.value = 'StepDepartment'
@@ -1479,15 +1440,14 @@ function resetBooking() {
     firstName: '',
     lastName: '',
     phone: '',
-    email: '',
+    countryCode: '+1',
     notes: '',
     optIn: false
   }
   validationErrors.value = {
     firstName: '',
     lastName: '',
-    phone: '',
-    email: ''
+    phone: ''
   }
   bookingResponse.value = null
   slotsForDate.value = []
@@ -1776,6 +1736,46 @@ watch([departmentRadioItems, preselectedDepartmentId], ([items, preId]) => {
 }
 :deep(.book-heading-top h1) {
   font-size: 26px;
+}
+:deep(.book-heading-top p) {
+  font-size: 16px;
+}
+:deep(.same-block-content) {
+  grid-template-columns: 1fr;
+}
+}
+@media only screen and (max-width: 599px) {
+:deep(.appointment-summary-mobile) {
+  gap: 15px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block) {
+  padding: 15px 10px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block span) {
+  font-size: 14px;
+}
+
+:deep(.appointment-summary-mobile .appointment-summary-mobile-block .text-lg) {
+  font-size: 14px;
+}
+:deep(.same-block-content .cursor-pointer .bg-red-500) {
+  font-size: 11px !important;
+
+}
+:deep(.department-inner .booking-mobile) {
+  font-size: 24px;
+}
+
+}
+
+@media only screen and (max-width: 399px) {
+  :deep(.appointment-summary-mobile) {
+  grid-template-columns:1fr;
+}
+}
+</style>
 }
 :deep(.book-heading-top p) {
   font-size: 16px;
