@@ -593,7 +593,7 @@
                 <div class="space-y-2">
                   <div class="font-semibold text-black text-[20px]">What's Next?</div>
                   <div class="text-sm text-gray-700 space-y-1">
-                    <p class="text-[16px] text-black font-medium">• You'll receive a confirmation email shortly</p>
+                    <p class="text-[16px] text-black font-medium">• You'll receive a confirmation sms shortly</p>
                    <p class="text-[16px] text-black font-medium"> • We'll send you a reminder 24 hours before</p>
                    <p class="text-[16px] text-black font-medium"> • Feel free to call us if you need to reschedule</p>
                   </div>
