@@ -484,7 +484,6 @@
   size="lg"
   :error="validationErrors.phone"
   required
-  pattern="^(\+1)?\s?\(?[2-9][0-9]{2}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$"
 />
 
                       </div>
@@ -692,8 +691,6 @@ const isFormValid = computed(() => {
   return contactForm.value.firstName.trim() && 
          contactForm.value.lastName.trim() && 
          contactForm.value.phone.trim() && 
-         contactForm.value.email.trim() && 
-         isValidEmail(contactForm.value.email) && 
          isValidPhone(contactForm.value.phone)
 })
 
@@ -727,10 +724,10 @@ function validateForm() {
   } else if (!isValidPhone(contactForm.value.phone)) {
     validationErrors.value.phone = 'Please enter a valid phone number'
   }
-  if (!contactForm.value.email.trim()) {
-    validationErrors.value.email = 'Email is required'
-  } else if (!isValidEmail(contactForm.value.email)) {
-    validationErrors.value.email = 'Please enter a valid email address'
+  if (contactForm.value.email.trim()) {
+    if (!isValidEmail(contactForm.value.email)) {
+      validationErrors.value.email = 'Please enter a valid email address'
+    }
   }
 
   return Object.values(validationErrors.value).every(error => !error)
