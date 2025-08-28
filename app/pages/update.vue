@@ -29,7 +29,7 @@
             </p>
           </div>
 
-          <!-- Added multistep progress indicator -->
+          <!-- Updated progress indicator for 4 steps -->
           <div class="mb-8">
             <div class="flex items-center justify-center space-x-4">
               <div v-for="(step, index) in steps" :key="index" class="flex items-center">
@@ -76,7 +76,6 @@
             </div>
           </div>
 
-          <!-- Wrapped form sections in step-based conditional rendering -->
           <div class="space-y-8">
             <!-- Step 1: Staff Selection -->
             <div v-if="currentStep === 1" class="space-y-6">
@@ -86,9 +85,10 @@
               </div>
 
               <div v-if="loadingStaff" class="space-y-4">
-                <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 3" :key="i" />
+                <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 4" :key="i" />
               </div>
-              <div v-else class="grid gap-4 same-block-content">
+              <!-- Changed to 2 columns grid for staff selection -->
+              <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 same-block-content">
                 <div
                   v-for="item in staffRadioItems"
                   :key="item.value"
@@ -300,69 +300,88 @@
                   </li>
                 </ul>
               </div>
+
+              <!-- Update button moved to step 3 -->
+              <div class="flex gap-4 pt-6">
+                <UButton
+                  type="button"
+                  color="gray"
+                  variant="soft"
+                  size="lg"
+                  class="flex-1"
+                  @click="previousStep"
+                >
+                  <UIcon name="i-lucide-chevron-left" class="mr-2" />
+                  Previous
+                </UButton>
+                
+                <UButton
+                  type="button"
+                  color="gray"
+                  variant="soft"
+                  size="lg"
+                  class="flex-1"
+                  @click="resetForm"
+                >
+                  <UIcon name="i-lucide-rotate-ccw" class="mr-2" />
+                  Reset Changes
+                </UButton>
+                
+                <UButton
+                  type="button"
+                  color="primary"
+                  size="lg"
+                  :loading="updateLoading"
+                  :disabled="!hasChanges"
+                  class="flex-1 bg-red-700 hover:bg-red-700 text-white"
+                  @click="updateAppointment"
+                >
+                  <UIcon name="i-lucide-save" class="mr-2" />
+                  {{ updateLoading ? 'Updating...' : 'Update Appointment' }}
+                </UButton>
+              </div>
             </div>
 
-            <!-- Added step navigation buttons -->
-            <div class="flex gap-4 pt-6">
+            <!-- Step 4: Success page with back to home button -->
+            <div v-if="currentStep === 4" class="space-y-6 text-center">
+              <div class="space-y-4">
+                <UIcon name="i-lucide-check-circle" class="text-6xl text-green-600 mx-auto" />
+                <h2 class="text-3xl font-bold text-black">Appointment Updated Successfully!</h2>
+                <p class="text-lg text-gray-700">Your appointment has been updated with the new details.</p>
+              </div>
+
+              <div class="p-6 bg-green-50 rounded-xl border border-green-200">
+                <h3 class="font-bold text-lg text-green-800 mb-4">Updated Appointment Details</h3>
+                <div class="space-y-3 text-left max-w-md mx-auto">
+                  <div class="flex items-center gap-2">
+                    <UIcon name="i-lucide-user" class="text-green-700" />
+                    <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <UIcon name="i-lucide-calendar" class="text-green-700" />
+                    <span class="text-sm font-medium">{{ formatDateForDisplay(selectedDateString) }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <UIcon name="i-lucide-clock" class="text-green-700" />
+                    <span class="text-sm font-medium">{{ selectedSlot }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <UIcon name="i-lucide-scissors" class="text-green-700" />
+                    <span class="text-sm font-medium">{{ currentAppointment.title }}</span>
+                  </div>
+                </div>
+              </div>
+
               <UButton
-                v-if="currentStep > 1"
-                type="button"
-                color="gray"
-                variant="soft"
-                size="lg"
-                class="flex-1"
-                @click="previousStep"
-              >
-                <UIcon name="i-lucide-chevron-left" class="mr-2" />
-                Previous
-              </UButton>
-              
-              <UButton
-                v-if="currentStep < 3"
                 type="button"
                 color="primary"
                 size="lg"
-                class="flex-1 bg-red-700 hover:bg-red-700 text-white"
-                @click="nextStep"
-                :disabled="!canProceedToNextStep"
+                class="bg-red-700 hover:bg-red-700 text-white px-8"
+               
               >
-                Next
-                <UIcon name="i-lucide-chevron-right" class="ml-2" />
+                <UIcon name="i-lucide-home" class="mr-2" />
+                Back to Home
               </UButton>
-
-              <UButton
-                v-if="currentStep === 3"
-                type="button"
-                color="gray"
-                variant="soft"
-                size="lg"
-                class="flex-1"
-                @click="resetForm"
-              >
-                <UIcon name="i-lucide-rotate-ccw" class="mr-2" />
-                Reset Changes
-              </UButton>
-              
-              <UButton
-                v-if="currentStep === 3"
-                type="button"
-                color="primary"
-                size="lg"
-                :loading="updateLoading"
-                :disabled="!hasChanges"
-                class="flex-1 bg-red-700 hover:bg-red-700 text-white"
-                @click="updateAppointment"
-              >
-                <UIcon name="i-lucide-save" class="mr-2" />
-                {{ updateLoading ? 'Updating...' : 'Update Appointment' }}
-              </UButton>
-            </div>
-
-            <!-- Success message -->
-            <div v-if="updateSuccess" class="p-6 bg-green-50 rounded-xl border border-green-200 text-center">
-              <UIcon name="i-lucide-check-circle" class="text-3xl text-green-600 mx-auto mb-2" />
-              <h3 class="font-bold text-lg text-green-800 mb-1">Appointment Updated Successfully!</h3>
-              <p class="text-green-700">Your appointment has been updated with the new details.</p>
             </div>
           </div>
         </div>
@@ -382,7 +401,8 @@ const currentStep = ref(1)
 const steps = ref([
   { title: 'Choose Stylist', description: 'Select your preferred stylist' },
   { title: 'Pick Date & Time', description: 'Choose your appointment slot' },
-  { title: 'Review & Confirm', description: 'Confirm your changes' }
+  { title: 'Review & Confirm', description: 'Confirm your changes' },
+  { title: 'Success', description: 'Appointment updated successfully' }
 ])
 
 // State management
@@ -599,11 +619,11 @@ async function fetchActiveSlots() {
 // Generate available dates (next 30 days)
 function generateAvailableDates() {
   const dates = []
-  const today = new Date()
+  const todayDate = new Date()
   
   for (let i = 0; i < 30; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() + i)
+    const date = new Date(todayDate)
+    date.setDate(todayDate.getDate() + i)
     
     const dateString = date.toISOString().split('T')[0]
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -621,58 +641,109 @@ function generateAvailableDates() {
 }
 
 // Event handlers
+async function fetchSlotsForDate(dateString) {
+  if (!currentAppointment.value.calendarId || !dateString) {
+    console.log('Missing required data for date-specific slot fetch')
+    slotsForDate.value = []
+    return
+  }
+
+  console.log('Fetching slots for specific date:', dateString)
+  
+  selectedSlot.value = ''
+  loadingSlots.value = true
+
+  // Check if we already have slots for this date from active slots
+  if (activeSlots.value[dateString]) {
+    const slotsForSelectedDate = activeSlots.value[dateString]
+    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateString)
+    }))
+    
+    slotsForDate.value = slotsWithStatus
+    loadingSlots.value = false
+    console.log('Using cached slots for date:', dateString, slotsWithStatus)
+    return
+  }
+
+  // If not in cache, fetch from the original API for the specific date
+  const serviceId = currentAppointment.value.calendarId
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+  
+  // Convert date string to timestamps for the original API
+  const date = new Date(dateString + 'T00:00:00')
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(date)
+  end.setHours(23, 59, 59, 999)
+
+  const startDate = start.getTime()
+  const endDate = end.getTime()
+
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  console.log('Fallback API URL for date:', apiUrl)
+
+  try {
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    console.log('Fallback slots API response:', data)
+    
+    const formatted = data.formattedSlots || {}
+    const key = Object.keys(formatted)[0]
+    const allSlots = key ? formatted[key] : []
+    
+    const slotsWithStatus = allSlots.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateString)
+    }))
+
+    slotsForDate.value = slotsWithStatus
+    console.log('Fallback slots loaded for date:', dateString, slotsWithStatus)
+  } catch (error) {
+    console.error('Error fetching slots for date:', error)
+    slotsForDate.value = []
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
 function selectStaff(staffId) {
   selectedStaff.value = staffId
   fetchActiveSlots() // Refresh slots when staff changes
+  // Auto-advance to step 2
+  setTimeout(() => {
+    currentStep.value = 2
+  }, 300)
 }
 
 function selectDate(dateInfo) {
+  console.log('Selecting date:', dateInfo.dateString)
   selectedDateString.value = dateInfo.dateString
+  selectedSlot.value = '' // Clear selected slot when changing date
+  
   const [year, month, day] = dateInfo.dateString.split('-').map(Number)
   selectedCalendarDate.value = new CalendarDate(year, month, day)
   
-  // Update slots for selected date
-  if (activeSlots.value[dateInfo.dateString]) {
-    const slotsForSelectedDate = activeSlots.value[dateInfo.dateString] || []
-    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
-      time: slot,
-      isPast: isSlotInPastMST(slot, dateInfo.dateString)
-    }))
-    slotsForDate.value = slotsWithStatus
-  } else {
-    slotsForDate.value = []
+  // Always fetch slots when date is selected
+  if (currentAppointment.value.calendarId && selectedStaff.value) {
+    fetchSlotsForDate(dateInfo.dateString)
   }
-  
-  selectedSlot.value = '' // Reset selected slot when date changes
 }
 
 function selectTimeSlot(time) {
+  console.log('Selecting time slot:', time, 'for date:', selectedDateString.value)
   selectedSlot.value = time
+  // Auto-advance to step 3 (summary)
+  setTimeout(() => {
+    currentStep.value = 3
+  }, 300)
 }
 
-function navigateDate(direction) {
-  const newIndex = currentDateIndex.value + direction
-  if (newIndex >= 0 && newIndex <= availableDates.value.length - 3) {
-    currentDateIndex.value = newIndex
-  }
-}
-
-function resetForm() {
-  // Reset to original appointment values
-  selectedStaff.value = currentAppointment.value.assignedUserId || 'any'
-  
-  const appointmentDate = new Date(currentAppointment.value.startTime)
-  const dateString = appointmentDate.toISOString().split('T')[0]
-  selectedDateString.value = dateString
-  
-  const [year, month, day] = dateString.split('-').map(Number)
-  selectedCalendarDate.value = new CalendarDate(year, month, day)
-  
-  selectedSlot.value = formatAppointmentTime(currentAppointment.value.startTime)
-  updateSuccess.value = false
-}
-
-// Update appointment
 async function updateAppointment() {
   if (!hasChanges.value) return
   
@@ -737,6 +808,10 @@ async function updateAppointment() {
       updateSuccess.value = true
       // Update current appointment data
       currentAppointment.value = { ...currentAppointment.value, ...data.response }
+      // Auto-advance to success step
+      setTimeout(() => {
+        currentStep.value = 4
+      }, 500)
     } else {
       throw new Error(data.error || 'Update failed')
     }
@@ -749,45 +824,48 @@ async function updateAppointment() {
   }
 }
 
-// Utility functions
-function formatAppointmentDate(dateString) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  })
+function goBackHome() {
+  // Navigate to home page - adjust URL as needed
+  window.location.href = '/'
 }
 
-function formatAppointmentTime(dateString) {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit',
-    hour12: true 
-  })
+function resetForm() {
+  // Reset to original appointment values
+  selectedStaff.value = currentAppointment.value.assignedUserId || 'any'
+  
+  const appointmentDate = new Date(currentAppointment.value.startTime)
+  const dateString = appointmentDate.toISOString().split('T')[0]
+  selectedDateString.value = dateString
+  
+  const [year, month, day] = dateString.split('-').map(Number)
+  selectedCalendarDate.value = new CalendarDate(year, month, day)
+  
+  selectedSlot.value = formatAppointmentTime(currentAppointment.value.startTime)
+  updateSuccess.value = false
 }
 
-function formatAppointmentDateString(dateString) {
-  const date = new Date(dateString)
-  return date.toISOString().split('T')[0]
-}
+watch(selectedDateString, (newDateString, oldDateString) => {
+  console.log('Date changed from', oldDateString, 'to', newDateString)
+  selectedSlot.value = ''
+  if (newDateString && currentStep.value === 2 && currentAppointment.value.calendarId && selectedStaff.value) {
+    console.log('Fetching slots for new date:', newDateString)
+    fetchSlotsForDate(newDateString)
+  } else {
+    console.log('Clearing slots - missing requirements:', {
+      dateString: newDateString,
+      step: currentStep.value,
+      calendarId: currentAppointment.value.calendarId,
+      staff: selectedStaff.value
+    })
+    slotsForDate.value = []
+  }
+})
 
-function formatDateForDisplay(dateString) {
-  const date = new Date(dateString + 'T00:00:00')
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric' 
-  })
-}
-
-function isSlotInPastMST(timeSlot, dateString) {
+function isSlotInPastMST(slotTime, dateString) {
   const now = new Date()
   const slotDate = new Date(dateString + 'T00:00:00')
   
-  const slotMatch = timeSlot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  const slotMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
   if (!slotMatch) return false
   
   let hour = parseInt(slotMatch[1])
@@ -799,30 +877,65 @@ function isSlotInPastMST(timeSlot, dateString) {
   
   slotDate.setHours(hour, minute, 0, 0)
   
-  return slotDate < now
+  // Add 15-minute buffer to prevent booking slots too close to current time
+  const bufferTime = 15 * 60 * 1000 // 15 minutes in milliseconds
+  return slotDate.getTime() < (now.getTime() + bufferTime)
 }
 
 function getSelectedStaffName() {
-  const staff = staffRadioItems.value.find(item => item.value === selectedStaff.value)
-  return staff ? staff.label : 'Any available staff'
+  const staffItem = staffRadioItems.value.find(item => item.value === selectedStaff.value)
+  return staffItem ? staffItem.label : 'Any available staff'
 }
 
-function nextStep() {
-  if (canProceedToNextStep.value && currentStep.value < 3) {
-    currentStep.value++
+function formatDateForDisplay(dateString) {
+  const date = new Date(dateString)
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+}
+
+function navigateDate(direction) {
+  currentDateIndex.value += direction
+}
+
+// Utility functions for date/time formatting
+function formatAppointmentDate(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const options = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    timeZone: 'America/Edmonton'
   }
+  return date.toLocaleDateString('en-US', options)
+}
+
+function formatAppointmentTime(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const options = { 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    hour12: true,
+    timeZone: 'America/Edmonton'
+  }
+  return date.toLocaleTimeString('en-US', options)
+}
+
+function formatAppointmentDateString(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  // Convert to Edmonton timezone and get ISO date string
+  const edmontonDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Edmonton' }))
+  return edmontonDate.toISOString().split('T')[0]
 }
 
 function previousStep() {
   if (currentStep.value > 1) {
-    currentStep.value--
+    currentStep.value -= 1
   }
 }
-
-// Watch for staff changes to refresh slots
-watch(selectedStaff, () => {
-  fetchActiveSlots()
-})
 </script>
 
 <style scoped>
