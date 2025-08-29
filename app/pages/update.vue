@@ -22,12 +22,7 @@
       <div v-else class="w-full max-w-4xl overflow-hidden department-block">
         <div class="p-8 department-inner">
           <!-- Header -->
-          <div class="text-center mb-8">
-            <h1 class="font-bold text-4xl mb-3 text-black">Update Your Appointment</h1>
-            <p class="text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">
-              Modify your appointment details below
-            </p>
-          </div>
+  
 
           <!-- Updated progress indicator for 4 steps -->
           <div class="mb-8 hidden md:block">
@@ -54,27 +49,7 @@
           </div>
 
           <!-- Current appointment info -->
-          <div class="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
-            <h3 class="font-bold text-lg text-black mb-4">Current Appointment</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-dark">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-calendar" class="text-red-700" />
-                <span class="text-black font-medium">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-clock" class="text-red-700" />
-                <span class="text-black font-medium">{{ formatAppointmentTime(currentAppointment.startTime) }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-user" class="text-red-700" />
-                <span class="text-black font-medium">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-scissors" class="text-red-700" />
-                <span class="text-black font-medium">{{ currentAppointment.title }}</span>
-              </div>
-            </div>
-          </div>
+      
 
           <div class="space-y-8">
             <!-- Step 1: Staff Selection -->
@@ -330,8 +305,8 @@
               </div>
 
               <div class="p-6 bg-green-50 rounded-xl border border-green-200">
-                <h3 class="font-bold text-lg text-green-800 mb-4">Updated Appointment Details</h3>
-                <div class="space-y-3 text-left max-w-md mx-auto">
+                <h3 class="font-bold text-lg text-black mb-4">Updated Appointment Details</h3>
+                <div class="space-y-3 text-left max-w-md mx-auto text-black">
                   <div class="flex items-center gap-2">
                     <UIcon name="i-lucide-user" class="text-green-700" />
                     <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
@@ -380,8 +355,8 @@ const currentStep = ref(1)
 const steps = ref([
   { title: '', description: '' },
   { title: '', description: '' },
-  { title: 'Review & Confirm', description: 'Confirm your changes' },
-  { title: 'Success', description: 'Appointment updated successfully' }
+  { title: '', description: '' },
+  { title: '', description: '' }
 ])
 
 // State management
