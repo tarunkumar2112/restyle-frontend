@@ -30,7 +30,7 @@
           </div>
 
           <!-- Updated progress indicator for 4 steps -->
-          <div class="mb-8">
+          <div class="mb-8 hidden md:block">
             <div class="flex items-center justify-center space-x-4">
               <div v-for="(step, index) in steps" :key="index" class="flex items-center">
                 <div :class="[
@@ -56,7 +56,7 @@
           <!-- Current appointment info -->
           <div class="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
             <h3 class="font-bold text-lg text-black mb-4">Current Appointment</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-dark">
               <div class="flex items-center gap-2">
                 <UIcon name="i-lucide-calendar" class="text-red-700" />
                 <span class="text-black font-medium">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
@@ -88,41 +88,42 @@
                 <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 4" :key="i" />
               </div>
               <!-- Changed to 2 columns grid for staff selection -->
-              <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 same-block-content">
-                <div
-                  v-for="item in staffRadioItems"
-                  :key="item.value"
-                  @click="selectStaff(item.value)"
-                  :class="[
-                    'cursor-pointer p-6 border-1 rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm',
-                    selectedStaff === item.value
-                      ? 'bg-red-50 text-black border-red-700 shadow-sm'
-                      : 'bg-white text-black border-gray-200 hover:border-red-300'
-                  ]"
-                >
-                  <div class="flex items-center gap-4">
-                    <div :class="[
-                      'p-3 rounded-full',
-                      selectedStaff === item.value ? 'bg-red-100' : 'bg-gray-100'
-                    ]">
-                      <UIcon :name="item.icon" :class="[
-                        'text-2xl',
-                        selectedStaff === item.value ? 'text-red-700' : 'text-gray-600'
-                      ]" />
-                    </div>
-                    <div>
-                      <span class="text-xl font-semibold text-black">{{ item.label }}</span>
-                      <span v-if="item.badge" :class="[
-                        'ml-3 px-3 py-1 rounded-full text-xs font-medium',
-                        selectedStaff === item.value ? 'bg-red-100 text-red-700' : 'bg-red-500 text-white'
-                      ]">{{ item.badge }}</span>
-                    </div>
-                  </div>
-                  <div v-if="selectedStaff === item.value" class="text-red-700">
-                    <UIcon name="i-lucide-check-circle" class="text-2xl" />
-                  </div>
-                </div>
-              </div>
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 w-full gap-2 text-s">
+  <div
+    v-for="item in staffRadioItems"
+    :key="item.value"
+    @click="selectStaff(item.value)"
+    :class="[ 
+      'cursor-pointer p-3 border rounded-xl flex items-center justify-between transition-all duration-200 hover:shadow-sm w-full',
+      selectedStaff === item.value
+        ? 'bg-red-50 text-black border-red-700 shadow-sm'
+        : 'bg-white text-black border-gray-200 hover:border-red-300'
+    ]"
+  >
+    <div class="flex items-center gap-4">
+      <div :class="[
+        'p-3 rounded-full',
+        selectedStaff === item.value ? 'bg-red-100' : 'bg-gray-100'
+      ]">
+        <UIcon :name="item.icon" :class="[
+          'text-2xl',
+          selectedStaff === item.value ? 'text-red-700' : 'text-gray-600'
+        ]" />
+      </div>
+      <div>
+        <span class="text-l font-medium text-black">{{ item.label }}</span>
+        <span v-if="item.badge" :class="[
+          'ml-3 px-3 py-1 rounded-full text-xs font-medium',
+          selectedStaff === item.value ? 'bg-red-100 text-red-700' : 'bg-red-500 text-white'
+        ]">{{ item.badge }}</span>
+      </div>
+    </div>
+    <div v-if="selectedStaff === item.value" class="text-red-700">
+      <UIcon name="i-lucide-check-circle" class="text-2xl" />
+    </div>
+  </div>
+</div>
+
             </div>
 
             <!-- Step 2: Date & Time Selection -->
@@ -243,47 +244,48 @@
                 <p class="text-gray-700">Confirm your appointment updates</p>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Current vs New Comparison -->
-                <div class="space-y-4">
-                  <h3 class="font-bold text-lg text-black">Current Appointment</h3>
-                  <div class="p-4 bg-gray-50 rounded-lg space-y-3">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-user" class="text-gray-600" />
-                      <span class="text-sm">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-calendar" class="text-gray-600" />
-                      <span class="text-sm">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-clock" class="text-gray-600" />
-                      <span class="text-sm">{{ formatAppointmentTime(currentAppointment.startTime) }}</span>
-                    </div>
-                  </div>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <!-- Current vs New Comparison -->
+  <div class="space-y-4">
+    <h3 class="font-bold text-lg text-black">Current Appointment</h3>
+    <div class="p-4 bg-gray-50 rounded-lg space-y-3 text-black">
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-user" class="text-black" />
+        <span class="text-sm">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-calendar" class="text-black" />
+        <span class="text-sm">{{ formatAppointmentDate(currentAppointment.startTime) }}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-clock" class="text-black" />
+        <span class="text-sm">{{ formatAppointmentTime(currentAppointment.startTime) }}</span>
+      </div>
+    </div>
+  </div>
 
-                <div class="space-y-4">
-                  <h3 class="font-bold text-lg text-black">New Appointment</h3>
-                  <div class="p-4 bg-red-50 rounded-lg space-y-3 border border-red-200">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-user" class="text-red-700" />
-                      <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
-                      <span v-if="selectedStaff !== currentAppointment.assignedUserId" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-calendar" class="text-red-700" />
-                      <span class="text-sm font-medium">{{ formatDateForDisplay(selectedDateString) }}</span>
-                      <span v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-lucide-clock" class="text-red-700" />
-                      <span class="text-sm font-medium">{{ selectedSlot }}</span>
-                      <span v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Changed</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+  <div class="space-y-4">
+    <h3 class="font-bold text-lg text-black">New Appointment</h3>
+    <div class="p-4 bg-red-50 rounded-lg space-y-3 border border-red-200 text-black">
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-user" class="text-black" />
+        <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
+        <span v-if="selectedStaff !== currentAppointment.assignedUserId" class="text-xs bg-red-100 text-black px-2 py-1 rounded">Changed</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-calendar" class="text-black" />
+        <span class="text-sm font-medium">{{ formatDateForDisplay(selectedDateString) }}</span>
+        <span v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)" class="text-xs bg-red-100 text-black px-2 py-1 rounded">Changed</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-clock" class="text-black" />
+        <span class="text-sm font-medium">{{ selectedSlot }}</span>
+        <span v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)" class="text-xs bg-red-100 text-black px-2 py-1 rounded">Changed</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 
               <!-- Changes Summary -->
               <div v-if="hasChanges" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -302,44 +304,21 @@
               </div>
 
               <!-- Update button moved to step 3 -->
-              <div class="flex gap-4 pt-6">
-                <UButton
-                  type="button"
-                  color="gray"
-                  variant="soft"
-                  size="lg"
-                  class="flex-1"
-                  @click="previousStep"
-                >
-                  <UIcon name="i-lucide-chevron-left" class="mr-2" />
-                  Previous
-                </UButton>
-                
-                <UButton
-                  type="button"
-                  color="gray"
-                  variant="soft"
-                  size="lg"
-                  class="flex-1"
-                  @click="resetForm"
-                >
-                  <UIcon name="i-lucide-rotate-ccw" class="mr-2" />
-                  Reset Changes
-                </UButton>
-                
-                <UButton
-                  type="button"
-                  color="primary"
-                  size="lg"
-                  :loading="updateLoading"
-                  :disabled="!hasChanges"
-                  class="flex-1 bg-red-700 hover:bg-red-700 text-white"
-                  @click="updateAppointment"
-                >
-                  <UIcon name="i-lucide-save" class="mr-2" />
-                  {{ updateLoading ? 'Updating...' : 'Update Appointment' }}
-                </UButton>
-              </div>
+         <div class="flex justify-center">
+  <UButton
+    type="button"
+    color="primary"
+    size="lg"
+    :loading="updateLoading"
+    :disabled="!hasChanges"
+    class="bg-red-700 hover:bg-red-800 text-white cursor-pointer"
+    @click="updateAppointment"
+  >
+    <UIcon name="i-lucide-save" class="mr-2" />
+    {{ updateLoading ? 'Updating...' : 'Update Appointment' }}
+  </UButton>
+</div>
+
             </div>
 
             <!-- Step 4: Success page with back to home button -->
@@ -399,8 +378,8 @@ const route = useRoute()
 
 const currentStep = ref(1)
 const steps = ref([
-  { title: 'Choose Stylist', description: 'Select your preferred stylist' },
-  { title: 'Pick Date & Time', description: 'Choose your appointment slot' },
+  { title: '', description: '' },
+  { title: '', description: '' },
   { title: 'Review & Confirm', description: 'Confirm your changes' },
   { title: 'Success', description: 'Appointment updated successfully' }
 ])
@@ -944,11 +923,6 @@ function previousStep() {
   font-family: 'Inter', sans-serif;
 }
 
-.department-block {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-}
 
 .department-inner {
   background: white;
