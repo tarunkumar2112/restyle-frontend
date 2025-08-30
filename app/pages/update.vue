@@ -174,7 +174,7 @@
                   </div>
                   <div v-else-if="enabledSlotsForDate.length > 0" class="space-y-4">
                     <div class="text-sm text-gray-600 mb-3">
-                      Available slots for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
+                      {{ slotStatusMessage }} for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
                     </div>
                     <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                       <UButton
@@ -196,10 +196,12 @@
                   <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
                     <UIcon name="i-lucide-calendar-x" class="text-4xl" />
                     <div class="text-center">
-                      <p class="font-medium text-black">{{ selectedDateString ? 'No slots available' : 'Select a date first' }}</p>
-                      <p class="text-sm text-gray-600">{{ selectedDateString ? 'Try choosing a different date' : 'Choose a date to see available times' }}</p>
+                      <p class="font-medium text-black">{{ selectedDateString ? slotStatusMessage : 'Select a date first' }}</p>
+                      <p class="text-sm text-gray-600">{{ selectedDateString ? 'Please try a different date or contact us for assistance' : 'Choose a date to see available times' }}</p>
                     </div>
                   </div>
+                  
+                  
                 </div>
                 
                 <div v-if="selectedSlot" class="p-4 bg-red-50 rounded-xl border border-red-200">
@@ -226,7 +228,7 @@
     <div class="p-4 bg-gray-50 rounded-lg space-y-3 text-black">
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-user" class="text-black" />
-        <span class="text-sm">{{ currentAppointment.assignedUserName || 'Any available staff' }}</span>
+        <span class="text-sm">{{ getCurrentStaffName() }}</span>
       </div>
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-calendar" class="text-black" />
@@ -245,7 +247,7 @@
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-user" class="text-black" />
         <span class="text-sm font-medium">{{ getSelectedStaffName() }}</span>
-        <span v-if="selectedStaff !== currentAppointment.assignedUserId" class="text-xs bg-red-100 text-black px-2 py-1 rounded">Changed</span>
+        <span v-if="selectedStaff && selectedStaff !== currentAppointment.assignedUserId" class="text-xs bg-red-100 text-black px-2 py-1 rounded">Changed</span>
       </div>
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-calendar" class="text-black" />
@@ -266,7 +268,7 @@
               <div v-if="hasChanges" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h4 class="font-bold text-blue-800 mb-2">Summary of Changes:</h4>
                 <ul class="text-sm text-blue-700 space-y-1">
-                  <li v-if="selectedStaff !== currentAppointment.assignedUserId">
+                  <li v-if="selectedStaff && selectedStaff !== currentAppointment.assignedUserId">
                     • Stylist changed to {{ getSelectedStaffName() }}
                   </li>
                   <li v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)">
@@ -326,16 +328,7 @@
                 </div>
               </div>
 
-              <UButton
-                type="button"
-                color="primary"
-                size="lg"
-                class="bg-red-700 hover:bg-red-700 text-white px-8"
-               
-              >
-                <UIcon name="i-lucide-home" class="mr-2" />
-                Back to Home
-              </UButton>
+             
             </div>
           </div>
         </div>
@@ -392,11 +385,33 @@ const visibleDates = computed(() => {
 })
 
 const enabledSlotsForDate = computed(() => {
-  return slotsForDate.value.filter(slot => !slot.isPast)
+  return slotsForDate.value.filter(slot => {
+    // Filter out past slots
+    if (slot.isPast) return false
+    
+    // Filter out unavailable slots (you can add more logic here if needed)
+    if (slot.isUnavailable) return false
+    
+    return true
+  })
+})
+
+const slotStatusMessage = computed(() => {
+  if (slotsForDate.value.length === 0) {
+    return 'No slots found for this date'
+  }
+  
+  const availableSlots = enabledSlotsForDate.value.length
+  
+  if (availableSlots === 0) {
+    return 'No available slots for this date'
+  }
+  
+  return `${availableSlots} slots available`
 })
 
 const hasChanges = computed(() => {
-  const staffChanged = selectedStaff.value !== currentAppointment.value.assignedUserId
+  const staffChanged = selectedStaff.value && selectedStaff.value !== currentAppointment.value.assignedUserId
   const timeChanged = selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime)
   const dateChanged = selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)
   
@@ -413,6 +428,10 @@ const canProceedToNextStep = computed(() => {
   return true
 })
 
+// Add a new cache for slots
+const slotsCache = ref({})
+const slotsCacheTimestamp = ref({})
+
 // Initialize component
 onMounted(async () => {
   appointmentId.value = route.query.id
@@ -425,7 +444,8 @@ onMounted(async () => {
   await fetchAppointmentDetails()
   await fetchStaffOptions()
   await fetchActiveSlots()
-  generateAvailableDates()
+  // Generate dates after appointment details are loaded
+  await generateAvailableDates()
 })
 
 // Fetch appointment details
@@ -452,8 +472,8 @@ async function fetchAppointmentDetails() {
     if (appointmentData && appointmentData.id) {
       currentAppointment.value = appointmentData
       
-      // Pre-populate form with current values
-      selectedStaff.value = appointmentData.assignedUserId || 'any'
+      // Don't pre-populate staff - let user select
+      selectedStaff.value = '' // Changed from appointmentData.assignedUserId || 'any'
       
       // Set current date and time
       const appointmentDate = new Date(appointmentData.startTime)
@@ -530,7 +550,7 @@ async function fetchStaffOptions() {
   }
 }
 
-// Fetch active slots
+// Fetch active slots with better caching
 async function fetchActiveSlots() {
   if (!currentAppointment.value.calendarId) return
   
@@ -552,12 +572,18 @@ async function fetchActiveSlots() {
       activeSlots.value = data.slots
       activeDay.value = data.activeDay
       
-      // Update slots for current selected date
+      // Cache the slots with timestamp
+      const cacheKey = `${serviceId}_${userId || 'any'}`
+      slotsCache.value[cacheKey] = data.slots
+      slotsCacheTimestamp.value[cacheKey] = Date.now()
+      
+      // Update slots for current selected date if available
       if (selectedDateString.value && data.slots[selectedDateString.value]) {
         const slotsForSelectedDate = data.slots[selectedDateString.value] || []
         const slotsWithStatus = slotsForSelectedDate.map(slot => ({
           time: slot,
-          isPast: isSlotInPastMST(slot, selectedDateString.value)
+          isPast: isSlotInPastMST(slot, selectedDateString.value),
+          isUnavailable: false
         }))
         slotsForDate.value = slotsWithStatus
       }
@@ -570,14 +596,40 @@ async function fetchActiveSlots() {
   }
 }
 
-// Generate available dates (next 30 days)
-function generateAvailableDates() {
+
+async function generateAvailableDates() {
   const dates = []
   const todayDate = new Date()
   
-  for (let i = 0; i < 30; i++) {
+  // Get current booking date for comparison
+  const currentBookingDate = currentAppointment.value.startTime ? new Date(currentAppointment.value.startTime) : null
+  
+  // Start from tomorrow (i = 1) instead of today (i = 0)
+  for (let i = 1; i < 31; i++) {
     const date = new Date(todayDate)
     date.setDate(todayDate.getDate() + i)
+    
+    // Skip Sunday (0) and Saturday (6)
+    if (date.getDay() === 0 || date.getDay() === 6) {
+      continue
+    }
+    
+    // Skip dates that are before or equal to the current booking date
+    if (currentBookingDate) {
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const bookingDateOnly = new Date(currentBookingDate.getFullYear(), currentBookingDate.getMonth(), currentBookingDate.getDate())
+      
+      if (dateOnly <= bookingDateOnly) {  // Changed from < to <=
+        continue
+      }
+    }
+    
+    // Also skip today's date completely
+    const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    if (dateOnly.getTime() === todayOnly.getTime()) {
+      continue
+    }
     
     const dateString = date.toISOString().split('T')[0]
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -587,14 +639,28 @@ function generateAvailableDates() {
       dateString,
       dayName: dayNames[date.getDay()],
       dateDisplay: `${monthNames[date.getMonth()]} ${date.getDate()}`,
-      label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayNames[date.getDay()]
+      label: i === 1 ? 'Tomorrow' : dayNames[date.getDay()],
+      isToday: false
     })
   }
   
   availableDates.value = dates
+  
+  // Auto-select the first available date and fetch its slots
+  if (dates.length > 0 && currentAppointment.value.calendarId && selectedStaff.value) {
+    let selectedDate = dates[0]
+    
+    selectedDateString.value = selectedDate.dateString
+    
+    const [year, month, day] = selectedDate.dateString.split('-').map(Number)
+    selectedCalendarDate.value = new CalendarDate(year, month, day)
+    
+    // Fetch slots for the first available date
+    fetchSlotsForDate(selectedDate.dateString)
+  }
 }
 
-// Event handlers
+// Enhanced fetchSlotsForDate with better caching and retry logic
 async function fetchSlotsForDate(dateString) {
   if (!currentAppointment.value.calendarId || !dateString) {
     console.log('Missing required data for date-specific slot fetch')
@@ -607,12 +673,20 @@ async function fetchSlotsForDate(dateString) {
   selectedSlot.value = ''
   loadingSlots.value = true
 
-  // Check if we already have slots for this date from active slots
-  if (activeSlots.value[dateString]) {
-    const slotsForSelectedDate = activeSlots.value[dateString]
+  const serviceId = currentAppointment.value.calendarId
+  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+  const cacheKey = `${serviceId}_${userId || 'any'}`
+
+  // Check cache first (cache valid for 5 minutes)
+  const cacheAge = Date.now() - (slotsCacheTimestamp.value[cacheKey] || 0)
+  const isCacheValid = cacheAge < 5 * 60 * 1000 // 5 minutes
+
+  if (isCacheValid && slotsCache.value[cacheKey] && slotsCache.value[cacheKey][dateString]) {
+    const slotsForSelectedDate = slotsCache.value[cacheKey][dateString]
     const slotsWithStatus = slotsForSelectedDate.map(slot => ({
       time: slot,
-      isPast: isSlotInPastMST(slot, dateString)
+      isPast: isSlotInPastMST(slot, dateString),
+      isUnavailable: false
     }))
     
     slotsForDate.value = slotsWithStatus
@@ -621,11 +695,80 @@ async function fetchSlotsForDate(dateString) {
     return
   }
 
-  // If not in cache, fetch from the original API for the specific date
-  const serviceId = currentAppointment.value.calendarId
-  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-  
-  // Convert date string to timestamps for the original API
+  // Check active slots cache
+  if (activeSlots.value[dateString]) {
+    const slotsForSelectedDate = activeSlots.value[dateString]
+    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
+      time: slot,
+      isPast: isSlotInPastMST(slot, dateString),
+      isUnavailable: false
+    }))
+    
+    slotsForDate.value = slotsWithStatus
+    loadingSlots.value = false
+    console.log('Using active slots cache for date:', dateString, slotsWithStatus)
+    return
+  }
+
+  // Try multiple API endpoints with retry logic
+  const maxRetries = 2
+  let lastError = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let slots = []
+      
+      if (attempt === 0) {
+        // First attempt: Try the original API
+        slots = await fetchSlotsFromAPI(dateString, serviceId, userId)
+      } else if (attempt === 1) {
+        // Second attempt: Try with different parameters
+        slots = await fetchSlotsFromAPI(dateString, serviceId, userId, true)
+      } else {
+        // Third attempt: Try without user filter
+        slots = await fetchSlotsFromAPI(dateString, serviceId, '', true)
+      }
+
+      if (slots && slots.length > 0) {
+        const slotsWithStatus = slots.map(slot => ({
+          time: slot,
+          isPast: isSlotInPastMST(slot, dateString),
+          isUnavailable: false // You can add logic here to check if slot is unavailable
+        }))
+
+        slotsForDate.value = slotsWithStatus
+        
+        // Update cache
+        if (!slotsCache.value[cacheKey]) {
+          slotsCache.value[cacheKey] = {}
+        }
+        slotsCache.value[cacheKey][dateString] = slots
+        slotsCacheTimestamp.value[cacheKey] = Date.now()
+        
+        console.log('Slots loaded successfully for date:', dateString, slotsWithStatus)
+        break
+      } else {
+        lastError = new Error('No slots returned from API')
+      }
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} failed for date ${dateString}:`, error)
+      lastError = error
+      
+      if (attempt === maxRetries) {
+        // All attempts failed, show empty slots but don't show error
+        slotsForDate.value = []
+        console.log('All attempts failed, showing empty slots for date:', dateString)
+      }
+    }
+  }
+
+  loadingSlots.value = false
+}
+
+
+
+// Helper function to fetch slots from API
+async function fetchSlotsFromAPI(dateString, serviceId, userId, useAlternative = false) {
   const date = new Date(dateString + 'T00:00:00')
   const start = new Date(date)
   start.setHours(0, 0, 0, 0)
@@ -636,39 +779,122 @@ async function fetchSlotsForDate(dateString) {
   const endDate = end.getTime()
 
   let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
-  if (userId) {
+  
+  if (userId && !useAlternative) {
     apiUrl += `&userId=${userId}`
   }
 
-  console.log('Fallback API URL for date:', apiUrl)
+  console.log('API URL for date:', apiUrl)
 
+  const response = await fetch(apiUrl)
+  const data = await response.json()
+  
+  if (!data || !data.formattedSlots) {
+    throw new Error('Invalid API response')
+  }
+  
+  const formatted = data.formattedSlots || {}
+  const key = Object.keys(formatted)[0]
+  const allSlots = key ? formatted[key] : []
+  
+  // Filter slots by business hours
+  const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
+  
+  return filteredSlots
+}
+
+// Function to filter slots by business hours
+function filterSlotsByBusinessHours(slots, date) {
+  if (!slots || slots.length === 0) return []
+  
+  const dayOfWeek = date.getDay()
+  
+  // Business hours: Monday-Friday 9 AM - 6 PM
+  const businessHours = {
+    1: { start: 9, end: 18 }, // Monday
+    2: { start: 9, end: 18 }, // Tuesday
+    3: { start: 9, end: 18 }, // Wednesday
+    4: { start: 9, end: 18 }, // Thursday
+    5: { start: 9, end: 18 }, // Friday
+    0: null, // Sunday - closed
+    6: null  // Saturday - closed
+  }
+  
+  const hours = businessHours[dayOfWeek]
+  if (!hours) return [] // Closed on weekends
+  
+  return slots.filter(slot => {
+    const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (!timeMatch) return false
+    
+    let hour = parseInt(timeMatch[1])
+    const period = timeMatch[3].toUpperCase()
+    
+    if (period === 'PM' && hour !== 12) hour += 12
+    if (period === 'AM' && hour === 12) hour = 0
+    
+    return hour >= hours.start && hour < hours.end
+  })
+}
+
+// Function to check if a slot is available for booking
+async function checkSlotAvailability(slotTime, dateString, serviceId, userId) {
   try {
+    // Convert slot time to timestamp
+    const date = new Date(dateString + 'T00:00:00')
+    const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (!timeMatch) return false
+    
+    let hour = parseInt(timeMatch[1])
+    const minute = parseInt(timeMatch[2])
+    const period = timeMatch[3].toUpperCase()
+    
+    if (period === 'PM' && hour !== 12) hour += 12
+    if (period === 'AM' && hour === 12) hour = 0
+    
+    date.setHours(hour, minute, 0, 0)
+    
+    // Convert to UTC (MST is UTC-7)
+    const mstOffset = -7 * 60 * 60 * 1000
+    const utcTime = new Date(date.getTime() - mstOffset)
+    
+    // Make API call to check availability
+    const apiUrl = `https://restyle-api.netlify.app/.netlify/functions/checkSlotAvailability?calendarId=${serviceId}&startTime=${encodeURIComponent(utcTime.toISOString())}`
     const response = await fetch(apiUrl)
     const data = await response.json()
-    console.log('Fallback slots API response:', data)
     
-    const formatted = data.formattedSlots || {}
-    const key = Object.keys(formatted)[0]
-    const allSlots = key ? formatted[key] : []
-    
-    const slotsWithStatus = allSlots.map(slot => ({
-      time: slot,
-      isPast: isSlotInPastMST(slot, dateString)
-    }))
-
-    slotsForDate.value = slotsWithStatus
-    console.log('Fallback slots loaded for date:', dateString, slotsWithStatus)
+    return data.available === true
   } catch (error) {
-    console.error('Error fetching slots for date:', error)
-    slotsForDate.value = []
-  } finally {
-    loadingSlots.value = false
+    console.error('Error checking slot availability:', error)
+    return true // Assume available if check fails
   }
 }
 
-function selectStaff(staffId) {
+async function selectStaff(staffId) {
   selectedStaff.value = staffId
+  
+  // Clear cache when staff changes to get fresh data
+  const serviceId = currentAppointment.value.calendarId
+  const cacheKey = `${serviceId}_${staffId === 'any' ? 'any' : staffId}`
+  if (slotsCache.value[cacheKey]) {
+    delete slotsCache.value[cacheKey]
+  }
+  
   fetchActiveSlots() // Refresh slots when staff changes
+  
+  // Auto-select first available date after staff selection
+  if (availableDates.value.length > 0 && currentAppointment.value.calendarId) {
+    const firstAvailableDate = availableDates.value[0]
+    
+    selectedDateString.value = firstAvailableDate.dateString
+    
+    const [year, month, day] = firstAvailableDate.dateString.split('-').map(Number)
+    selectedCalendarDate.value = new CalendarDate(year, month, day)
+    
+    // Fetch slots for the first available date
+    fetchSlotsForDate(firstAvailableDate.dateString)
+  }
+  
   // Auto-advance to step 2
   setTimeout(() => {
     currentStep.value = 2
@@ -705,6 +931,18 @@ async function updateAppointment() {
   updateSuccess.value = false
   
   try {
+    // First, validate that the selected slot is still available
+    if (selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime) || 
+        selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)) {
+      
+      const isSlotStillAvailable = await validateSlotAvailability()
+      if (!isSlotStillAvailable) {
+        // Slot is no longer available, refresh slots and show error
+        await refreshSlotsForCurrentDate()
+        throw new Error('The selected time slot is no longer available. Please choose a different time.')
+      }
+    }
+    
     // Build update URL with only changed parameters
     let updateUrl = `https://restyle-api.netlify.app/.netlify/functions/updateappointment?appointmentId=${appointmentId.value}`
     
@@ -741,7 +979,7 @@ async function updateAppointment() {
     }
     
     // Add staff parameter if changed
-    if (selectedStaff.value !== currentAppointment.value.assignedUserId) {
+    if (selectedStaff.value && selectedStaff.value !== currentAppointment.value.assignedUserId) {
       let assignedUserId = selectedStaff.value
       if (assignedUserId === 'any') {
         // Pick a random staff member
@@ -767,14 +1005,88 @@ async function updateAppointment() {
         currentStep.value = 4
       }, 500)
     } else {
-      throw new Error(data.error || 'Update failed')
+      // Handle specific error cases
+      if (data.error && data.error.includes('no longer available')) {
+        // Slot was taken, refresh and show better error
+        await refreshSlotsForCurrentDate()
+        throw new Error('The selected time slot is no longer available. Please choose a different time.')
+      } else {
+        throw new Error(data.error || data.details?.message || 'Update failed')
+      }
     }
     
   } catch (error) {
     console.error('Update error:', error)
-    alert('Failed to update appointment. Please try again.')
+    
+    // Show user-friendly error message
+    if (error.message.includes('no longer available')) {
+      alert('The selected time slot is no longer available. Please choose a different time.')
+      // Go back to step 2 to let user select a new time
+      currentStep.value = 2
+    } else {
+      alert('Failed to update appointment. Please try again.')
+    }
   } finally {
     updateLoading.value = false
+  }
+}
+
+// New function to validate slot availability before update
+async function validateSlotAvailability() {
+  if (!selectedDateString.value || !selectedSlot.value) return true
+  
+  try {
+    // Fetch fresh slots for the selected date
+    const serviceId = currentAppointment.value.calendarId
+    const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+    
+    const date = new Date(selectedDateString.value + 'T00:00:00')
+    const start = new Date(date)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(date)
+    end.setHours(23, 59, 59, 999)
+
+    const startDate = start.getTime()
+    const endDate = end.getTime()
+
+    let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
+    if (userId) {
+      apiUrl += `&userId=${userId}`
+    }
+
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    
+    if (data.formattedSlots) {
+      const formatted = data.formattedSlots || {}
+      const key = Object.keys(formatted)[0]
+      const availableSlots = key ? formatted[key] : []
+      
+      // Check if our selected slot is still in the available slots
+      return availableSlots.includes(selectedSlot.value)
+    }
+    
+    return false
+  } catch (error) {
+    console.error('Error validating slot availability:', error)
+    return false
+  }
+}
+
+// New function to refresh slots for current date
+async function refreshSlotsForCurrentDate() {
+  if (selectedDateString.value) {
+    // Clear cache for this date to force fresh fetch
+    const serviceId = currentAppointment.value.calendarId
+    const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
+    const cacheKey = `${serviceId}_${userId || 'any'}`
+    
+    if (slotsCache.value[cacheKey]) {
+      delete slotsCache.value[cacheKey][selectedDateString.value]
+    }
+    
+    // Fetch fresh slots
+    await fetchSlotsForDate(selectedDateString.value)
   }
 }
 
@@ -816,27 +1128,72 @@ watch(selectedDateString, (newDateString, oldDateString) => {
 })
 
 function isSlotInPastMST(slotTime, dateString) {
+  if (!dateString || !slotTime) return false
+  
+  // Get current time in MST (Mountain Standard Time - UTC-7)
   const now = new Date()
-  const slotDate = new Date(dateString + 'T00:00:00')
+  const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
+  const nowMST = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + mstOffset)
   
-  const slotMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-  if (!slotMatch) return false
+  // Parse the date string (YYYY-MM-DD format)
+  const [year, month, day] = dateString.split('-').map(Number)
+  const slotDate = new Date(year, month - 1, day) // month is 0-indexed in JS Date
   
-  let hour = parseInt(slotMatch[1])
-  const minute = parseInt(slotMatch[2])
-  const period = slotMatch[3].toUpperCase()
+  // Parse slot time (e.g., "2:30 PM" or "02:30 PM")
+  const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (!timeMatch) return false
+  
+  let hour = parseInt(timeMatch[1])
+  const minute = parseInt(timeMatch[2])
+  const period = timeMatch[3].toUpperCase()
   
   if (period === 'PM' && hour !== 12) hour += 12
   if (period === 'AM' && hour === 12) hour = 0
   
   slotDate.setHours(hour, minute, 0, 0)
   
-  // Add 15-minute buffer to prevent booking slots too close to current time
-  const bufferTime = 15 * 60 * 1000 // 15 minutes in milliseconds
-  return slotDate.getTime() < (now.getTime() + bufferTime)
+  // Convert slot time to MST for comparison
+  const slotMST = new Date(slotDate.getTime() + (slotDate.getTimezoneOffset() * 60 * 1000) + mstOffset)
+  
+  // Get current booking time for comparison
+  const currentBookingTime = currentAppointment.value.startTime ? new Date(currentAppointment.value.startTime) : null
+  
+  // If it's the same date as current booking, only show slots after current booking time
+  if (currentBookingTime && dateString === formatAppointmentDateString(currentAppointment.value.startTime)) {
+    const bookingMST = new Date(currentBookingTime.getTime() + (currentBookingTime.getTimezoneOffset() * 60 * 1000) + mstOffset)
+    return slotMST.getTime() <= bookingMST.getTime()
+  }
+  
+  // For today's date, add a buffer of 30 minutes to allow for booking time
+  const today = new Date()
+  const todayString = today.toISOString().split('T')[0]
+  
+  if (dateString === todayString) {
+    const bufferTime = 30 * 60 * 1000 // 30 minutes buffer
+    return slotMST.getTime() < (nowMST.getTime() - bufferTime)
+  }
+  
+  // For other dates, compare with current time
+  return slotMST < nowMST
 }
 
+// Add a function to get current staff name properly
+function getCurrentStaffName() {
+  if (!currentAppointment.value.assignedUserId) {
+    return 'Any available staff'
+  }
+  
+  // Find the staff name from the staff radio items
+  const staffItem = staffRadioItems.value.find(item => item.value === currentAppointment.value.assignedUserId)
+  return staffItem ? staffItem.label : 'Any available staff'
+}
+
+// Update the getSelectedStaffName function to handle empty selection
 function getSelectedStaffName() {
+  if (!selectedStaff.value) {
+    return 'Please select a staff member'
+  }
+  
   const staffItem = staffRadioItems.value.find(item => item.value === selectedStaff.value)
   return staffItem ? staffItem.label : 'Any available staff'
 }
