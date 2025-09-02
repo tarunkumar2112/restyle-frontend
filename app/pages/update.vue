@@ -413,7 +413,6 @@ const currentStep = ref(2)
 const steps = ref([
   { title: '', description: '' },
   { title: '', description: '' },
-  { title: '', description: '' },
   { title: '', description: '' }
 ])
 
@@ -677,62 +676,51 @@ async function fetchActiveSlots() {
 async function generateAvailableDates() {
   const dates = []
   const todayDate = new Date()
+  const mountainTimeZone = 'America/Denver'
   
-  // Get current booking date for comparison
   const currentBookingDate = currentAppointment.value.startTime ? new Date(currentAppointment.value.startTime) : null
   
-  // Start from tomorrow (i = 1) instead of today (i = 0)
   for (let i = 1; i < 31; i++) {
     const date = new Date(todayDate)
     date.setDate(todayDate.getDate() + i)
     
-    // Skip Sunday (0) and Saturday (6)
-    if (date.getDay() === 0 || date.getDay() === 6) {
-      continue
-    }
+    // Determine weekday in Mountain Time
+    const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
+    const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
+    const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
     
-    // Skip dates that are before or equal to the current booking date
+    // Skip weekends
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue
+    
+    // Skip dates <= current booking date (compare in MT date-only)
     if (currentBookingDate) {
-      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-      const bookingDateOnly = new Date(currentBookingDate.getFullYear(), currentBookingDate.getMonth(), currentBookingDate.getDate())
-      
-      if (dateOnly <= bookingDateOnly) {  // Changed from < to <=
-        continue
-      }
+      const bookingName = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(currentBookingDate) // YYYY-MM-DD
+      const dateName = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(date)
+      if (dateName <= bookingName) continue
     }
     
-    // Also skip today's date completely
-    const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    if (dateOnly.getTime() === todayOnly.getTime()) {
-      continue
-    }
-    
-    const dateString = date.toISOString().split('T')[0]
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    // Format display labels in MT
+    const dateString = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(date)
+    const dayName = weekdayName
+    const dateDisplay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: mountainTimeZone }).format(date)
+    const label = i === 1 ? 'Tomorrow' : dayName
     
     dates.push({
       dateString,
-      dayName: dayNames[date.getDay()],
-      dateDisplay: `${monthNames[date.getMonth()]} ${date.getDate()}`,
-      label: i === 1 ? 'Tomorrow' : dayNames[date.getDay()],
+      dayName,
+      dateDisplay,
+      label,
       isToday: false
     })
   }
   
   availableDates.value = dates
   
-  // Auto-select the first available date and fetch its slots
   if (dates.length > 0 && currentAppointment.value.calendarId && selectedStaff.value) {
-    let selectedDate = dates[0]
-    
+    const selectedDate = dates[0]
     selectedDateString.value = selectedDate.dateString
-    
     const [year, month, day] = selectedDate.dateString.split('-').map(Number)
     selectedCalendarDate.value = new CalendarDate(year, month, day)
-    
-    // Fetch slots for the first available date
     await fetchSlotsForDate(selectedDate.dateString)
   }
 }
@@ -844,7 +832,7 @@ async function fetchSlotsForDate(dateString) {
 
 
 
-// Helper function to fetch slots from API
+// Helper function to fetch slots from API (copied from supabase.vue)
 async function fetchSlotsFromAPI(dateString, serviceId, userId, useAlternative = false) {
   const date = new Date(dateString + 'T00:00:00')
   const start = new Date(date)
@@ -884,33 +872,34 @@ async function fetchSlotsFromAPI(dateString, serviceId, userId, useAlternative =
 function filterSlotsByBusinessHours(slots, date) {
   if (!slots || slots.length === 0) return []
   
-  const dayOfWeek = date.getDay()
+  const mountainTimeZone = 'America/Denver'
+  // Determine weekday in Mountain Time
+  const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
+  const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
+  const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
   
-  // Business hours: Monday-Friday 9 AM - 6 PM
-  const businessHours = {
-    1: { start: 9, end: 18 }, // Monday
-    2: { start: 9, end: 18 }, // Tuesday
-    3: { start: 9, end: 18 }, // Wednesday
-    4: { start: 9, end: 18 }, // Thursday
-    5: { start: 9, end: 18 }, // Friday
-    0: null, // Sunday - closed
-    6: null  // Saturday - closed
+  // Business hours in Mountain Time: Mon-Wed/Fri 9-19, Thu 11-19, closed weekends
+  let hours = null
+  if (dayOfWeek === 4) {
+    hours = { start: 11, end: 19 }
+  } else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    hours = { start: 9, end: 19 }
   }
-  
-  const hours = businessHours[dayOfWeek]
-  if (!hours) return [] // Closed on weekends
+  if (!hours) return []
   
   return slots.filter(slot => {
     const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
     if (!timeMatch) return false
     
     let hour = parseInt(timeMatch[1])
+    const minute = parseInt(timeMatch[2])
     const period = timeMatch[3].toUpperCase()
     
     if (period === 'PM' && hour !== 12) hour += 12
     if (period === 'AM' && hour === 12) hour = 0
     
-    return hour >= hours.start && hour < hours.end
+    const slotTime = hour + (minute / 60)
+    return slotTime >= hours.start && slotTime < hours.end
   })
 }
 
