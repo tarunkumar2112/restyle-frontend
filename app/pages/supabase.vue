@@ -386,13 +386,6 @@
                         </UButton>
                       </div>
                     </div>
-                    <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
-                      <UIcon name="i-lucide-calendar-x" class="text-4xl" />
-                      <div class="text-center">
-                        <p class="font-medium text-black">{{ selectedDateString ? 'No slots available' : 'Select a date first' }}</p>
-                        <p class="text-sm text-gray-600">{{ selectedDateString ? 'Try choosing a different date' : 'Choose a date to see available times' }}</p>
-                      </div>
-                    </div>
                   </div>
                   
                   <div v-if="selectedSlot" class="p-4 bg-red-50 rounded-xl border border-red-200">
@@ -628,7 +621,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 import { useRoute } from 'vue-router'
 const finalContactId = ref(null)
-const prefetchedSlots = ref({})
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
@@ -666,6 +658,7 @@ const selectedCalendarDate = ref(null)
 const slotsForDate = ref([])
 const selectedSlot = ref('')
 const loadingSlots = ref(false)
+const slotsInitialized = ref(false)
 
 const activeSlots = ref({})
 const activeDay = ref('')
@@ -838,18 +831,32 @@ function isSlotInPast(slotTime, selectedDate) {
 
 // Business hours for filtering slots
 function getBusinessHours(date) {
-  const dayOfWeek = date.getDay()
-  
-  if (dayOfWeek === 4) { // Thursday
+  const mountainTimeZone = 'America/Denver'
+  // Determine the weekday in Mountain Time
+  const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
+  const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
+  const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
+
+  // Remove weekends entirely
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return null
+  }
+
+  // Thursday custom hours in Mountain Time
+  if (dayOfWeek === 4) {
     return { start: 11, end: 19 } // 11am to 7pm
   }
-  
-  return { start: 9, end: 19 } // 9am to 7pm for other days
+
+  // Default hours for other weekdays in MT
+  return { start: 9, end: 19 } // 9am to 7pm
 }
 
 // Filter slots based on business hours
 function filterSlotsByBusinessHours(slots, date) {
   const businessHours = getBusinessHours(date)
+  if (!businessHours) {
+    return []
+  }
   
   return slots.filter(slot => {
     const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
@@ -912,12 +919,6 @@ watch(selectedDepartment, async (groupId) => {
       value: service.id,
       description: `Duration: ${service.slotDuration} mins | Staff: ${service.teamMembers?.length ?? 0}`
     }))
-    
-    // Store the prefetched slots data from the service call
-    if (data.prefetchedSlots) {
-      prefetchedSlots.value = data.prefetchedSlots
-    }
-    
     selectedService.value = ''
   } catch (e) {
     serviceRadioItems.value = []
@@ -992,66 +993,12 @@ async function fetchActiveSlots() {
   
   selectedSlot.value = ''
   slotsForDate.value = []
+  slotsInitialized.value = false
   loadingSlots.value = true
 
   const serviceId = selectedService.value
   const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
 
-  // First check if we have prefetched data for this service
-  if (prefetchedSlots.value[serviceId]) {
-    console.log('Using prefetched slots for service:', serviceId)
-    const prefetchedData = prefetchedSlots.value[serviceId]
-    
-    activeSlots.value = prefetchedData.formattedSlots || {}
-    calendarId.value = serviceId
-    
-    // Determine active day based on available slots
-    const availableDates = Object.keys(activeSlots.value)
-    if (availableDates.length > 0) {
-      // Prioritize today, then tomorrow, then the rest of the week
-      const today = new Date().toISOString().split('T')[0]
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
-      
-      let firstAvailableDate = availableDates[0]
-      
-      if (availableDates.includes(today)) {
-        activeDay.value = 'today'
-        firstAvailableDate = today
-      } else if (availableDates.includes(tomorrow)) {
-        activeDay.value = 'tomorrow'
-        firstAvailableDate = tomorrow
-      } else {
-        // Find the next Monday if no slots today/tomorrow
-        const nextMonday = getNextMonday()
-        if (availableDates.includes(nextMonday)) {
-          firstAvailableDate = nextMonday
-          activeDay.value = 'next_week'
-        } else {
-          activeDay.value = 'future'
-        }
-      }
-      
-      const [year, month, day] = firstAvailableDate.split('-').map(Number)
-      selectedCalendarDate.value = new CalendarDate(year, month, day)
-      selectedDateString.value = firstAvailableDate
-      
-      const slotsForSelectedDate = activeSlots.value[firstAvailableDate] || []
-      const slotsWithStatus = slotsForSelectedDate.map(slot => ({
-        time: slot,
-        isPast: isSlotInPastMST(slot, firstAvailableDate)
-      }))
-
-      slotsForDate.value = slotsWithStatus
-      console.log('Prefetched slots loaded for date:', firstAvailableDate, slotsWithStatus)
-      
-      loadingSlots.value = false
-      return
-    }
-  }
-
-  // Fallback to API call if no prefetched data
-  console.log('No prefetched data found, making API call')
-  
   // Build API URL for active slots
   let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Activeslots?calendarId=${serviceId}`
   if (userId) {
@@ -1077,7 +1024,6 @@ async function fetchActiveSlots() {
         
         const [year, month, day] = firstAvailableDate.split('-').map(Number)
         selectedCalendarDate.value = new CalendarDate(year, month, day)
-        selectedDateString.value = firstAvailableDate
         
         const slotsForSelectedDate = data.slots[firstAvailableDate] || []
         const slotsWithStatus = slotsForSelectedDate.map(slot => ({
@@ -1087,25 +1033,23 @@ async function fetchActiveSlots() {
 
         slotsForDate.value = slotsWithStatus
         console.log('Active slots loaded for date:', firstAvailableDate, slotsWithStatus)
+        
+        if (slotsWithStatus.length === 0) {
+        }
+      } else {
       }
+    } else {
+      console.error('Invalid response format:', data)
     }
   } catch (error) {
     console.error('Error fetching active slots:', error)
+    slotsForDate.value = []
   } finally {
     loadingSlots.value = false
+    slotsInitialized.value = true
   }
 }
-// Add this helper function to your component
-function getNextMonday() {
-  const today = new Date()
-  const dayOfWeek = today.getDay()
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7
-  
-  const nextMonday = new Date(today)
-  nextMonday.setDate(today.getDate() + daysUntilMonday)
-  
-  return nextMonday.toISOString().split('T')[0] // Returns YYYY-MM-DD format
-}
+
 async function fetchSlotsForDate(dateString) {
   if (!selectedService.value || !dateString) {
     console.log('Missing required data for date-specific slot fetch')
@@ -1116,6 +1060,7 @@ async function fetchSlotsForDate(dateString) {
   console.log('Fetching slots for specific date:', dateString)
   
   selectedSlot.value = ''
+  slotsInitialized.value = false
   loadingSlots.value = true
 
   // Check if we already have slots for this date from active slots
@@ -1128,6 +1073,7 @@ async function fetchSlotsForDate(dateString) {
     
     slotsForDate.value = slotsWithStatus
     loadingSlots.value = false
+    slotsInitialized.value = true
     console.log('Using cached slots for date:', dateString, slotsWithStatus)
     return
   }
@@ -1180,6 +1126,7 @@ async function fetchSlotsForDate(dateString) {
     slotsForDate.value = []
   } finally {
     loadingSlots.value = false
+    slotsInitialized.value = true
   }
 }
 
@@ -1223,15 +1170,24 @@ const visibleDates = computed(() => {
 function generateAvailableDates() {
   const dates = []
   const today = new Date()
+  const mountainTimeZone = 'America/Denver'
   
   // Generate next 14 days
   for (let i = 0; i < 14; i++) {
     const date = new Date(today)
     date.setDate(today.getDate() + i)
+
+    // Compute weekday in Mountain Time and skip Sat/Sun
+    const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
+    const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
+    const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      continue
+    }
     
     const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
-    const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
+    const dateDisplay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: mountainTimeZone }).format(date)
     
     let label = ''
     if (i === 0) label = 'TODAY'
@@ -1343,6 +1299,23 @@ watch(selectedDateString, (newDateString, oldDateString) => {
       staff: selectedStaff.value
     })
     slotsForDate.value = []
+  }
+})
+
+// Prefetch active slots as soon as service is picked to avoid UI flicker
+watch(selectedService, (serviceId) => {
+  if (!serviceId) {
+    slotsForDate.value = []
+    slotsInitialized.value = false
+    return
+  }
+  fetchActiveSlots()
+})
+
+// If staff changes, refresh active slots for current service
+watch(selectedStaff, () => {
+  if (selectedService.value) {
+    fetchActiveSlots()
   }
 })
 
