@@ -184,7 +184,12 @@
 
               <!-- Date Slider -->
               <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-6">
+                <div v-if="datesLoading || visibleDates.length === 0" class="mb-6">
+                  <div class="grid grid-cols-3 gap-4">
+                    <USkeleton class="h-20 rounded-xl bg-gray-100" v-for="i in 3" :key="i" />
+                  </div>
+                </div>
+                <div v-else class="flex items-center justify-between mb-6">
                   <UButton
                     variant="ghost"
                     size="sm"
@@ -452,6 +457,9 @@ const visibleDates = computed(() => {
   return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
 })
 
+// Loading state for dates to avoid initial empty flash
+const datesLoading = ref(true)
+
 const enabledSlotsForDate = computed(() => {
   return slotsForDate.value.filter(slot => {
     // Filter out past slots
@@ -514,6 +522,7 @@ onMounted(async () => {
   await fetchActiveSlots()
   // Generate dates after appointment details are loaded
   await generateAvailableDates()
+  datesLoading.value = false
 })
 
 // Fetch appointment details
@@ -724,7 +733,7 @@ async function generateAvailableDates() {
     selectedCalendarDate.value = new CalendarDate(year, month, day)
     
     // Fetch slots for the first available date
-    fetchSlotsForDate(selectedDate.dateString)
+    await fetchSlotsForDate(selectedDate.dateString)
   }
 }
 
