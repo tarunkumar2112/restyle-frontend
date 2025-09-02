@@ -1492,7 +1492,7 @@ const redirectUrl = bookData.websiteUpdate.updatedContact.contact.website;
 
 // Redirect after 2 seconds
 setTimeout(() => {
-  window.location.href = redirectUrl;
+ window.open(redirectUrl, "_blank");
 }, 2000); // 2000 milliseconds = 2 seconds
     if (!bookData.response?.id) {
       throw new Error(bookData.error || 'Booking failed')
