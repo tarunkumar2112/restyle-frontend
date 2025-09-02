@@ -108,6 +108,73 @@
                 <p class="text-gray-700">Select a new appointment slot</p>
               </div>
 
+              <!-- Summary | Staff | Guests cards -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2 max-w-3xl mx-auto">
+                <!-- Summary Card -->
+                <div class="text-center p-4 bg-white rounded-xl border border-gray-200">
+                  <div class="font-bold text-lg mb-1 text-black">Summary</div>
+                  <div class="text-gray-700">{{ currentAppointment.title || 'Selected service' }}</div>
+                  <div class="text-sm text-red-700 font-semibold mt-1">
+                    Duration: {{ getServiceDurationMinutes() }} mins
+                  </div>
+                </div>
+                <!-- Staff Card with Change button -->
+                <div class="text-center p-4 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
+                  <div class="font-bold text-lg mb-1 text-black">Staff</div>
+                  <div class="text-red-700 font-semibold text-center mb-2">{{ getSelectedStaffName() }}</div>
+                  <UButton
+                    size="sm"
+                    color="primary"
+                    class="bg-red-700 hover:bg-red-700 text-white"
+                    @click="currentStep = 1"
+                  >
+                    <UIcon name="i-lucide-user-switch" class="mr-1" /> Change Staff
+                  </UButton>
+                </div>
+                <!-- Guests Card -->
+                <div class="text-center p-4 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
+                  <div class="font-bold text-lg mb-1 text-black">Guests</div>
+                  <div v-if="!showGuestInput" class="flex flex-col items-center">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                      <UIcon name="i-lucide-user" class="text-2xl text-red-700" />
+                      <span class="font-bold text-xl text-black">{{ guestCount }}</span>
+                    </div>
+                    <UButton
+                      size="sm"
+                      color="primary"
+                      class="bg-red-700 hover:bg-red-700 text-white mt-2"
+                      @click="showGuestInput = true"
+                    >
+                      <UIcon name="i-lucide-plus" class="mr-1" /> Add Guest
+                    </UButton>
+                  </div>
+                  <div v-else class="w-full">
+                    <label class="block font-semibold mb-2 text-black text-sm">Select Number of Guests</label>
+                    <div class="flex justify-center quantity-guest">
+                      <UInputNumber
+                        v-model="guestCount"
+                        :min="1"
+                        :max="10"
+                        size="md"
+                        class="w-28"
+                      />
+                    </div>
+                    <div class="text-center text-xs font-medium text-black bg-white rounded-lg p-2 border border-gray-200 mt-2">
+                      You{{ guestCount > 1 ? ' and ' + (guestCount - 1) + ' guest' + (guestCount > 2 ? 's' : '') : '' }}
+                    </div>
+                    <UButton
+                      size="xs"
+                      color="gray"
+                      variant="soft"
+                      class="mt-2 border border-gray-200 w-full text-center justify-center p-[6px] text-white bg-[#751a29] cursor-pointer"
+                      @click="resetGuestInput"
+                    >
+                      Cancel
+                    </UButton>
+                  </div>
+                </div>
+              </div>
+
               <!-- Timezone indicator -->
               <div class="text-center mb-6">
                 <div class="text-sm font-medium text-gray-600 uppercase tracking-wide">
@@ -167,12 +234,12 @@
               <!-- Time slots -->
               <div class="space-y-4 times-block">
                 <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm min-h-[400px]">
-                  <div v-if="loadingSlots" class="space-y-3">
+                  <div v-if="loadingSlots || (!enabledSlotsForDate.length)" class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                       <USkeleton class="h-12 rounded-lg bg-gray-100" v-for="i in 8" :key="i" />
                     </div>
                   </div>
-                  <div v-else-if="enabledSlotsForDate.length > 0" class="space-y-4">
+                  <div v-else class="space-y-4">
                     <div class="text-sm text-gray-600 mb-3">
                       {{ slotStatusMessage }} for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
                     </div>
@@ -191,13 +258,6 @@
                       >
                         {{ slot.time }}
                       </UButton>
-                    </div>
-                  </div>
-                  <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
-                    <UIcon name="i-lucide-calendar-x" class="text-4xl" />
-                    <div class="text-center">
-                      <p class="font-medium text-black">{{ selectedDateString ? slotStatusMessage : 'Select a date first' }}</p>
-                      <p class="text-sm text-gray-600">{{ selectedDateString ? 'Please try a different date or contact us for assistance' : 'Choose a date to see available times' }}</p>
                     </div>
                   </div>
                   
@@ -344,7 +404,7 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const currentStep = ref(1)
+const currentStep = ref(2)
 const steps = ref([
   { title: '', description: '' },
   { title: '', description: '' },
@@ -375,6 +435,14 @@ const calendarId = ref('')
 
 const updateLoading = ref(false)
 const updateSuccess = ref(false)
+
+// Guests (mirror logic from supabase.vue)
+const guestCount = ref(1)
+const showGuestInput = ref(false)
+function resetGuestInput() {
+  guestCount.value = 1
+  showGuestInput.value = false
+}
 
 // Date navigation
 const availableDates = ref([])
@@ -472,8 +540,8 @@ async function fetchAppointmentDetails() {
     if (appointmentData && appointmentData.id) {
       currentAppointment.value = appointmentData
       
-      // Don't pre-populate staff - let user select
-      selectedStaff.value = '' // Changed from appointmentData.assignedUserId || 'any'
+      // Default to 'any' so slots show by default on Step 2
+      selectedStaff.value = 'any'
       
       // Set current date and time
       const appointmentDate = new Date(appointmentData.startTime)
@@ -872,6 +940,9 @@ async function checkSlotAvailability(slotTime, dateString, serviceId, userId) {
 
 async function selectStaff(staffId) {
   selectedStaff.value = staffId
+  // Keep spinner visible while refreshing slots for new staff
+  loadingSlots.value = true
+  slotsForDate.value = []
   
   // Clear cache when staff changes to get fresh data
   const serviceId = currentAppointment.value.calendarId
@@ -880,10 +951,12 @@ async function selectStaff(staffId) {
     delete slotsCache.value[cacheKey]
   }
   
-  fetchActiveSlots() // Refresh slots when staff changes
+  await fetchActiveSlots() // Refresh slots when staff changes
   
   // Auto-select first available date after staff selection
   if (availableDates.value.length > 0 && currentAppointment.value.calendarId) {
+    // Reset slider to first visible date for update flow
+    currentDateIndex.value = 0
     const firstAvailableDate = availableDates.value[0]
     
     selectedDateString.value = firstAvailableDate.dateString
@@ -892,7 +965,7 @@ async function selectStaff(staffId) {
     selectedCalendarDate.value = new CalendarDate(year, month, day)
     
     // Fetch slots for the first available date
-    fetchSlotsForDate(firstAvailableDate.dateString)
+    await fetchSlotsForDate(firstAvailableDate.dateString)
   }
   
   // Auto-advance to step 2
@@ -1206,6 +1279,15 @@ function formatDateForDisplay(dateString) {
 
 function navigateDate(direction) {
   currentDateIndex.value += direction
+}
+
+// Compute duration for Summary card from appointment
+function getServiceDurationMinutes() {
+  const start = currentAppointment.value?.startTime ? new Date(currentAppointment.value.startTime) : null
+  const end = currentAppointment.value?.endTime ? new Date(currentAppointment.value.endTime) : null
+  if (!start || !end) return ''
+  const mins = Math.round((end.getTime() - start.getTime()) / (60 * 1000))
+  return isNaN(mins) ? '' : mins
 }
 
 // Utility functions for date/time formatting
