@@ -628,40 +628,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
 import { useRoute } from 'vue-router'
 const finalContactId = ref(null)
-function debounce(fn, delay = 500) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
-async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 500) {
-  let attempt = 0
-  // exponential backoff: 0.5s, 1s, 2s, 4s...
-  while (attempt <= retries) {
-    try {
-      const res = await fetch(url, options)
-      // 429: back off and retry silently
-      if (res.status === 429 && attempt < retries) {
-        const wait = baseDelay * Math.pow(2, attempt)
-        await new Promise(r => setTimeout(r, wait))
-        attempt++
-        continue
-      }
-      return res // return even if !ok; caller can decide what to do
-    } catch (e) {
-      // network error: retry
-      if (attempt < retries) {
-        const wait = baseDelay * Math.pow(2, attempt)
-        await new Promise(r => setTimeout(r, wait))
-        attempt++
-        continue
-      }
-      throw e
-    }
-  }
-}
 
 const currentStep = ref('StepDepartment')
 const selectedDepartment = ref('')
@@ -879,10 +845,7 @@ function getBusinessHours(date) {
   
   return { start: 9, end: 19 } // 9am to 7pm for other days
 }
-function isClosedDay(date) {
-  const { start, end } = getBusinessHours(date)
-  return start >= end
-}
+
 // Filter slots based on business hours
 function filterSlotsByBusinessHours(slots, date) {
   const businessHours = getBusinessHours(date)
@@ -1036,7 +999,7 @@ async function fetchActiveSlots() {
   console.log('Active Slots API URL:', apiUrl)
 
   try {
-    const response = await fetchWithRetry(apiUrl)
+    const response = await fetch(apiUrl)
     const data = await response.json()
     console.log('Active Slots API response:', data)
 
@@ -1067,11 +1030,10 @@ async function fetchActiveSlots() {
       } else {
       }
     } else {
-      console.error('Invalid response format:', data);
-      console.warn('Slots response had unexpected shape; ignoring.');
+      console.error('Invalid response format:', data)
     }
   } catch (error) {
-    console.warn('Active slots fetch issue (suppressed):', error?.message || error)
+    console.error('Error fetching active slots:', error)
     slotsForDate.value = []
   } finally {
     loadingSlots.value = false
@@ -1126,7 +1088,7 @@ async function fetchSlotsForDate(dateString) {
   console.log('Fallback API URL for date:', apiUrl)
 
   try {
-   const response = await fetchWithRetry(apiUrl)
+    const response = await fetch(apiUrl)
     const data = await response.json()
     console.log('Fallback slots API response:', data)
     
@@ -1154,8 +1116,7 @@ async function fetchSlotsForDate(dateString) {
     loadingSlots.value = false
   }
 }
-const debouncedFetchActiveSlots = debounce(fetchActiveSlots, 600);
-const debouncedFetchSlotsForDate = debounce(fetchSlotsForDate, 600);
+
 function isSlotInPastMST(slotTime, dateString) {
   if (!dateString || !slotTime) return false
   
@@ -1247,7 +1208,7 @@ function selectDate(dateInfo) {
   
   // Always fetch slots when date is selected
   if (selectedService.value && selectedStaff.value) {
-    fdebouncedFetchSlotsForDate(dateInfo.dateString)
+    fetchSlotsForDate(dateInfo.dateString)
   }
 }
 
@@ -1307,7 +1268,7 @@ watch(selectedDateString, (newDateString, oldDateString) => {
   selectedSlot.value = ''
   if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
     console.log('Fetching slots for new date:', newDateString)
-    debouncedFetchSlotsForDate(newDateString)
+    fetchSlotsForDate(newDateString)
   } else {
     console.log('Clearing slots - missing requirements:', {
       dateString: newDateString,
@@ -1327,7 +1288,7 @@ watch(currentStep, (step) => {
       console.log('Auto-selecting first available date')
       selectDate(availableDates.value[0])
     }
-    debouncedFetchActiveSlots()
+    fetchActiveSlots()
   }
 })
 
