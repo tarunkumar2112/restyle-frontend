@@ -624,9 +624,16 @@
 </template>
 
 <script setup>
+// <CHANGE> imports kept as-is
 import { ref, computed, watch, onMounted } from 'vue'
-import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { CalendarDate } from '@internationalized/date'
 import { useRoute } from 'vue-router'
+
+// <CHANGE> route helper and preselected department
+const route = typeof useRoute === 'function' ? useRoute() : null
+const preselectedDepartmentId = ref('')
+
+// ... existing code ...
 const finalContactId = ref(null)
 
 const currentStep = ref('StepDepartment')
@@ -669,6 +676,22 @@ const loadingSlots = ref(false)
 const activeSlots = ref({})
 const activeDay = ref('')
 const calendarId = ref('')
+
+// <CHANGE> request caches and controllers to prevent 429s
+const servicesCache = new Map()              // key: groupId -> services array
+const staffCache = new Map()                 // key: userId -> staff data
+const activeSlotsCache = new Map()           // key: `${serviceId}|${userId||'any'}` -> { slots, activeDay, calendarId }
+const dateSlotsCache = new Map()             // key: `${serviceId}|${userId||'any'}|${dateString}` -> [slots]
+
+let activeSlotsController = null
+let dateSlotsController = null
+
+function keyForActive(serviceId, userId) {
+  return `${serviceId}|${userId || 'any'}`
+}
+function keyForDate(serviceId, userId, dateString) {
+  return `${serviceId}|${userId || 'any'}|${dateString}`
+}
 
 // Form validation
 const validationErrors = ref({
@@ -737,55 +760,25 @@ const bookingLoading = ref(false)
 const bookingResponse = ref(null)
 
 const steps = [
-  {
-    title: 'Department',
-    icon: 'i-lucide-building',
-    value: 'StepDepartment',
-    slot: 'StepDepartment'
-  },
-  {
-    title: 'Service',
-    icon: 'i-lucide-scissors',
-    value: 'StepService',
-    slot: 'StepService'
-  },
-  {
-    title: 'Staff',
-    icon: 'i-lucide-user-check',
-    value: 'StepStaff',
-    slot: 'StepStaff'
-  },
-  {
-    title: 'Date & Time',
-    icon: 'i-lucide-calendar-days',
-    value: 'StepDateTime',
-    slot: 'StepDateTime'
-  },
-  {
-    title: 'Information',
-    icon: 'i-lucide-info',
-    value: 'StepInformation',
-    slot: 'StepInformation'
-  },
-  {
-    title: 'Success',
-    icon: 'i-lucide-check-circle',
-    value: 'StepSuccess',
-    slot: 'StepSuccess'
-  }
+  { title: 'Department', icon: 'i-lucide-building', value: 'StepDepartment', slot: 'StepDepartment' },
+  { title: 'Service', icon: 'i-lucide-scissors', value: 'StepService', slot: 'StepService' },
+  { title: 'Staff', icon: 'i-lucide-user-check', value: 'StepStaff', slot: 'StepStaff' },
+  { title: 'Date & Time', icon: 'i-lucide-calendar-days', value: 'StepDateTime', slot: 'StepDateTime' },
+  { title: 'Information', icon: 'i-lucide-info', value: 'StepInformation', slot: 'StepInformation' },
+  { title: 'Success', icon: 'i-lucide-check-circle', value: 'StepSuccess', slot: 'StepSuccess' }
 ]
 
 // Map group names to icons
 function getGroupIcon(name) {
   switch (name.toLowerCase()) {
-    case 'ladies': return 'i-lucide-user';
-    case 'gents': return 'i-lucide-user';
-    case 'laser hair removal': return 'i-lucide-zap';
-    case 'waxing': return 'i-lucide-droplet';
-    case 'threading': return 'i-lucide-wand';
-    case 'bridal': return 'i-lucide-diamond';
-    case 'facials': return 'i-lucide-smile';
-    default: return 'i-lucide-user';
+    case 'ladies': return 'i-lucide-user'
+    case 'gents': return 'i-lucide-user'
+    case 'laser hair removal': return 'i-lucide-zap'
+    case 'waxing': return 'i-lucide-droplet'
+    case 'threading': return 'i-lucide-wand'
+    case 'bridal': return 'i-lucide-diamond'
+    case 'facials': return 'i-lucide-smile'
+    default: return 'i-lucide-user'
   }
 }
 
@@ -807,63 +800,45 @@ function formatCalendarDate(calendarDate) {
   })
 }
 
-// Check if a time slot is in the past
+// Check if a time slot is in the past (MST aware)
 function isSlotInPast(slotTime, selectedDate) {
   if (!selectedDate || !slotTime) return false
-  
   const now = new Date()
   const slotDate = calendarDateToJSDate(selectedDate)
-  
-  // Parse slot time (e.g., "2:30 PM")
   const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
   if (!timeMatch) return false
-  
   let hour = parseInt(timeMatch[1])
   const minute = parseInt(timeMatch[2])
   const period = timeMatch[3].toUpperCase()
-  
   if (period === 'PM' && hour !== 12) hour += 12
   if (period === 'AM' && hour === 12) hour = 0
-  
   slotDate.setHours(hour, minute, 0, 0)
-  
-  // Convert to MST for comparison
-  const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
-  const slotMST = new Date(slotDate.getTime() + mstOffset)
-  const nowMST = new Date(now.getTime() + mstOffset)
-  
+  const mstOffset = -7 * 60 * 60 * 1000 // UTC-7
+  const slotMST = new Date(slotDate.getTime() + (slotDate.getTimezoneOffset() * 60 * 1000) + mstOffset)
+  const nowMST = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + mstOffset)
   return slotMST < nowMST
 }
 
 // Business hours for filtering slots
 function getBusinessHours(date) {
   const dayOfWeek = date.getDay()
-  
   if (dayOfWeek === 4) { // Thursday
-    return { start: 11, end: 19 } // 11am to 7pm
+    return { start: 11, end: 19 }
   }
-  
-  return { start: 9, end: 19 } // 9am to 7pm for other days
+  return { start: 9, end: 19 }
 }
 
 // Filter slots based on business hours
 function filterSlotsByBusinessHours(slots, date) {
   const businessHours = getBusinessHours(date)
-  
   return slots.filter(slot => {
-    const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!timeMatch) return false
-    
-    let hour = parseInt(timeMatch[1])
-    const minute = parseInt(timeMatch[2])
-    const period = timeMatch[3].toUpperCase()
-    
-    if (period === 'PM' && hour !== 12) {
-      hour += 12
-    } else if (period === 'AM' && hour === 12) {
-      hour = 0
-    }
-    
+    const m = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (!m) return false
+    let hour = parseInt(m[1])
+    const minute = parseInt(m[2])
+    const period = m[3].toUpperCase()
+    if (period === 'PM' && hour !== 12) hour += 12
+    if (period === 'AM' && hour === 12) hour = 0
     const slotTime = hour + (minute / 60)
     return slotTime >= businessHours.start && slotTime < businessHours.end
   })
@@ -898,20 +873,24 @@ onMounted(async () => {
   }
 })
 
-
+// <CHANGE> load services for a department with cache to avoid duplicate fetch
 watch(selectedDepartment, async (groupId) => {
   if (!groupId) return
   loadingServices.value = true
   selectedService.value = ''
   try {
-    const res = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Services?id=${groupId}`)
-    const data = await res.json()
-    serviceRadioItems.value = (data.calendars || []).map(service => ({
+    let services = servicesCache.get(groupId)
+    if (!services) {
+      const res = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Services?id=${groupId}`)
+      const data = await res.json()
+      services = data.calendars || []
+      servicesCache.set(groupId, services)
+    }
+    serviceRadioItems.value = services.map(service => ({
       label: service.name,
       value: service.id,
       description: `Duration: ${service.slotDuration} mins | Staff: ${service.teamMembers?.length ?? 0}`
     }))
-    selectedService.value = ''
   } catch (e) {
     serviceRadioItems.value = []
   } finally {
@@ -919,7 +898,7 @@ watch(selectedDepartment, async (groupId) => {
   }
 })
 
-// Watch for selectedService change and fetch staff
+// <CHANGE> Watch for selectedService change and fetch staff (without re-fetching Services)
 watch(selectedService, async (serviceId) => {
   staffRadioItems.value = []
   selectedStaff.value = ''
@@ -927,9 +906,8 @@ watch(selectedService, async (serviceId) => {
   loadingStaff.value = true
   try {
     const groupId = selectedDepartment.value
-    const lastServiceApi = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Services?id=${groupId}`)
-    const lastServiceData = await lastServiceApi.json()
-    const serviceObj = (lastServiceData.calendars || []).find(s => s.id === serviceId)
+    const services = servicesCache.get(groupId) || []
+    const serviceObj = services.find(s => s.id === serviceId)
     const teamMembers = serviceObj?.teamMembers || []
 
     const items = [{
@@ -940,14 +918,14 @@ watch(selectedService, async (serviceId) => {
     }]
 
     const staffPromises = teamMembers.map(async member => {
+      const cacheHit = staffCache.get(member.userId)
+      if (cacheHit) return cacheHit
       try {
         const staffRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Staff?id=${member.userId}`)
         const staffData = await staffRes.json()
-        return {
-          label: staffData.name,
-          value: staffData.id,
-          icon: 'i-lucide-user'
-        }
+        const entry = { label: staffData.name, value: staffData.id, icon: 'i-lucide-user' }
+        staffCache.set(member.userId, entry)
+        return entry
       } catch (e) {
         return null
       }
@@ -955,8 +933,10 @@ watch(selectedService, async (serviceId) => {
 
     const staffResults = await Promise.all(staffPromises)
     items.push(...staffResults.filter(Boolean))
-
     staffRadioItems.value = items
+
+    // <CHANGE> Prefetch active slots immediately for service with "any" staff to avoid loading later
+    await fetchActiveSlots({ prefetch: true })
   } catch (e) {
     staffRadioItems.value = []
   } finally {
@@ -964,187 +944,23 @@ watch(selectedService, async (serviceId) => {
   }
 })
 
-// Calendar and slots
-// const selectedCalendarDate = ref(null)
-// const slotsForDate = ref([])
-// const selectedSlot = ref('')
-// const loadingSlots = ref(false)
-
-// const activeSlots = ref({})
-// const activeDay = ref('')
-// const calendarId = ref('')
-
-async function fetchActiveSlots() {
-  if (!selectedService.value) {
-    console.log('No service selected for active slots fetch')
-    slotsForDate.value = []
-    return
-  }
-
-  console.log('Fetching active slots for service:', selectedService.value)
-  
-  selectedSlot.value = ''
-  slotsForDate.value = []
-  loadingSlots.value = true
-
-  const serviceId = selectedService.value
-  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-
-  // Build API URL for active slots
-  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Activeslots?calendarId=${serviceId}`
-  if (userId) {
-    apiUrl += `&userId=${userId}`
-  }
-
-  console.log('Active Slots API URL:', apiUrl)
-
-  try {
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    console.log('Active Slots API response:', data)
-
-    if (data.slots && data.activeDay && data.calendarId) {
-      activeSlots.value = data.slots
-      activeDay.value = data.activeDay
-      calendarId.value = data.calendarId
-
-      // Get the first available date from slots
-      const availableDates = Object.keys(data.slots)
-      if (availableDates.length > 0) {
-        const firstAvailableDate = availableDates[0]
-        
-        const [year, month, day] = firstAvailableDate.split('-').map(Number)
-        selectedCalendarDate.value = new CalendarDate(year, month, day)
-        
-        const slotsForSelectedDate = data.slots[firstAvailableDate] || []
-        const slotsWithStatus = slotsForSelectedDate.map(slot => ({
-          time: slot,
-          isPast: isSlotInPastMST(slot, firstAvailableDate)
-        }))
-
-        slotsForDate.value = slotsWithStatus
-        console.log('Active slots loaded for date:', firstAvailableDate, slotsWithStatus)
-        
-        if (slotsWithStatus.length === 0) {
-        }
-      } else {
-      }
-    } else {
-      console.error('Invalid response format:', data)
-    }
-  } catch (error) {
-    console.error('Error fetching active slots:', error)
-    slotsForDate.value = []
-  } finally {
-    loadingSlots.value = false
-  }
-}
-
-async function fetchSlotsForDate(dateString) {
-  if (!selectedService.value || !dateString) {
-    console.log('Missing required data for date-specific slot fetch')
-    slotsForDate.value = []
-    return
-  }
-
-  console.log('Fetching slots for specific date:', dateString)
-  
-  selectedSlot.value = ''
-  loadingSlots.value = true
-
-  // Check if we already have slots for this date from active slots
-  if (activeSlots.value[dateString]) {
-    const slotsForSelectedDate = activeSlots.value[dateString]
-    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
-      time: slot,
-      isPast: isSlotInPastMST(slot, dateString)
-    }))
-    
-    slotsForDate.value = slotsWithStatus
-    loadingSlots.value = false
-    console.log('Using cached slots for date:', dateString, slotsWithStatus)
-    return
-  }
-
-  // If not in cache, fetch from the original API for the specific date
-  const serviceId = selectedService.value
-  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-  
-  // Convert date string to timestamps for the original API
-  const date = new Date(dateString + 'T00:00:00')
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(date)
-  end.setHours(23, 59, 59, 999)
-
-  const startDate = start.getTime()
-  const endDate = end.getTime()
-
-  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
-  if (userId) {
-    apiUrl += `&userId=${userId}`
-  }
-
-  console.log('Fallback API URL for date:', apiUrl)
-
-  try {
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    console.log('Fallback slots API response:', data)
-    
-    const formatted = data.formattedSlots || {}
-    const key = Object.keys(formatted)[0]
-    const allSlots = key ? formatted[key] : []
-    
-    // Filter slots by business hours
-    const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
-    
-    const slotsWithStatus = filteredSlots.map(slot => ({
-      time: slot,
-      isPast: isSlotInPastMST(slot, dateString)
-    }))
-
-    slotsForDate.value = slotsWithStatus
-    console.log('Fallback slots loaded for date:', dateString, slotsWithStatus)
-    
-    if (slotsWithStatus.length === 0) {
-    }
-  } catch (error) {
-    console.error('Error fetching slots for date:', error)
-    slotsForDate.value = []
-  } finally {
-    loadingSlots.value = false
-  }
-}
-
+// Calendar and slots helpers
 function isSlotInPastMST(slotTime, dateString) {
   if (!dateString || !slotTime) return false
-  
-  // Get current time in MST (Mountain Standard Time - UTC-7)
   const now = new Date()
-  const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
+  const mstOffset = -7 * 60 * 60 * 1000
   const nowMST = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + mstOffset)
-  
-  // Parse the date string (YYYY-MM-DD format)
   const [year, month, day] = dateString.split('-').map(Number)
-  const slotDate = new Date(year, month - 1, day) // month is 0-indexed in JS Date
-  
-  // Parse slot time (e.g., "2:30 PM" or "02:30 PM")
-  const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-  if (!timeMatch) return false
-  
-  let hour = parseInt(timeMatch[1])
-  const minute = parseInt(timeMatch[2])
-  const period = timeMatch[3].toUpperCase()
-  
+  const slotDate = new Date(year, month - 1, day)
+  const m = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (!m) return false
+  let hour = parseInt(m[1])
+  const minute = parseInt(m[2])
+  const period = m[3].toUpperCase()
   if (period === 'PM' && hour !== 12) hour += 12
   if (period === 'AM' && hour === 12) hour = 0
-  
   slotDate.setHours(hour, minute, 0, 0)
-  
-  // Convert slot time to MST for comparison
   const slotMST = new Date(slotDate.getTime() + (slotDate.getTimezoneOffset() * 60 * 1000) + mstOffset)
-  
   return slotMST < nowMST
 }
 
@@ -1154,42 +970,59 @@ const visibleDates = computed(() => {
   return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
 })
 
+// <CHANGE> generateAvailableDates kept as fallback if active slots not loaded yet
 function generateAvailableDates() {
   const dates = []
-  const today = new Date()
-  
-  // Generate next 14 days
+  const base = new Date()
   for (let i = 0; i < 14; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() + i)
-    
+    const date = new Date(base)
+    date.setDate(base.getDate() + i)
     const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
     const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    
     let label = ''
     if (i === 0) label = 'TODAY'
     else if (i === 1) label = 'TOMORROW'
     else if (i <= 7) label = 'THIS WEEK'
     else label = 'NEXT WEEK'
-    
-    dates.push({
-      dateString,
-      dayName,
-      dateDisplay,
-      label,
-      date
-    })
+    dates.push({ dateString, dayName, dateDisplay, label, date })
   }
-  
   availableDates.value = dates
+}
+
+// <CHANGE> Sync availableDates directly from activeSlots keys (ensures Monday shows)
+function syncAvailableDatesFromActiveSlots() {
+  const keys = Object.keys(activeSlots.value || {})
+  if (!keys.length) return false
+
+  const dates = keys
+    .sort() // already YYYY-MM-DD, safe to sort
+    .map(ds => {
+      const [y, m, d] = ds.split('-').map(Number)
+      const date = new Date(y, m - 1, d)
+      return {
+        dateString: ds,
+        dayName: date.toLocaleDateString('en-US', { weekday: 'long' }),
+        dateDisplay: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        label: '', // optional grouping not needed when showing only available dates
+        date
+      }
+    })
+
+  availableDates.value = dates
+  currentDateIndex.value = 0
+
+  // Auto-select first available date and load slots from cache
+  if (dates.length > 0) {
+    selectDate(dates[0], { fromSync: true })
+  }
+  return true
 }
 
 function navigateDate(direction) {
   const newIndex = currentDateIndex.value + direction
   if (newIndex >= 0 && newIndex <= availableDates.value.length - 3) {
     currentDateIndex.value = newIndex
-    // Auto-select first visible date after navigation and fetch slots
     const firstVisibleDate = availableDates.value[newIndex]
     if (firstVisibleDate) {
       selectDate(firstVisibleDate)
@@ -1197,28 +1030,22 @@ function navigateDate(direction) {
   }
 }
 
-function selectDate(dateInfo) {
-  console.log('Selecting date:', dateInfo.dateString)
+function selectDate(dateInfo, opts = {}) {
   selectedDateString.value = dateInfo.dateString
-  selectedSlot.value = '' // Clear selected slot when changing date
-  
-  // Convert to CalendarDate for compatibility with existing logic
+  selectedSlot.value = ''
   const [year, month, day] = dateInfo.dateString.split('-').map(Number)
   selectedCalendarDate.value = new CalendarDate(year, month, day)
-  
-  // Always fetch slots when date is selected
-  if (selectedService.value && selectedStaff.value) {
-    fetchSlotsForDate(dateInfo.dateString)
+  // <CHANGE> Fetch slots for date (cached if available)
+  if (selectedService.value) {
+    fetchSlotsForDate(dateInfo.dateString, { silent: !!opts.fromSync })
   }
 }
 
 function selectTimeSlot(time) {
-  console.log('Selecting time slot:', time, 'for date:', selectedDateString.value)
   selectedSlot.value = time
-  // Auto-navigate to booking step when slot is selected
   setTimeout(() => {
     currentStep.value = 'StepInformation'
-  }, 500) // Small delay for better UX
+  }, 300)
 }
 
 const enabledSlotsForDate = computed(() => {
@@ -1230,97 +1057,83 @@ function formatDateForDisplay(dateString) {
   const [year, month, day] = dateString.split('-').map(Number)
   const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   })
 }
 
 const selectedDateString = ref('')
 const userTimezone = ref('')
 
+// <CHANGE> Initial mount: build fallback dates and parse ?id=...
 onMounted(async () => {
   generateAvailableDates()
   userTimezone.value = 'MST'
-  
-  // Auto-select first available date
+
   if (availableDates.value.length > 0) {
     selectDate(availableDates.value[0])
   }
 
-  // Check for ?id=... in URL (works for Nuxt or Vue Router projects)
   let idFromQuery = ''
   if (route && route.query && route.query.id) {
     idFromQuery = route.query.id
   } else if (typeof window !== 'undefined') {
-    // fallback for plain Vue: parse window.location.search
     const params = new URLSearchParams(window.location.search)
-    idFromQuery = params.get('id')
+    idFromQuery = params.get('id') || ''
   }
   if (idFromQuery) {
     preselectedDepartmentId.value = idFromQuery
   }
 })
 
-watch(selectedDateString, (newDateString, oldDateString) => {
-  console.log('Date changed from', oldDateString, 'to', newDateString)
+// <CHANGE> Only refetch when on DateTime step and both selectedService/staff present.
+// Note: fetchSlotsForDate internally uses cache in most cases.
+watch(selectedDateString, (newDateString) => {
   selectedSlot.value = ''
-  if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    console.log('Fetching slots for new date:', newDateString)
+  if (newDateString && currentStep.value === 'StepDateTime' && selectedService.value) {
     fetchSlotsForDate(newDateString)
   } else {
-    console.log('Clearing slots - missing requirements:', {
-      dateString: newDateString,
-      step: currentStep.value,
-      service: selectedService.value,
-      staff: selectedStaff.value
-    })
     slotsForDate.value = []
   }
 })
 
-watch(currentStep, (step) => {
-  console.log('Step changed to:', step)
-  if (step === 'StepDateTime' && selectedService.value && selectedStaff.value) {
-    generateAvailableDates()
-    if (availableDates.value.length > 0 && !selectedDateString.value) {
-      console.log('Auto-selecting first available date')
-      selectDate(availableDates.value[0])
+watch(currentStep, async (step) => {
+  if (step === 'StepDateTime' && selectedService.value) {
+    // Prefer active slots based dates (pre-fetched on service/staff change)
+    if (!syncAvailableDatesFromActiveSlots()) {
+      generateAvailableDates()
+      if (availableDates.value.length > 0 && !selectedDateString.value) {
+        selectDate(availableDates.value[0])
+      }
+      await fetchActiveSlots()
+      syncAvailableDatesFromActiveSlots()
     }
-    fetchActiveSlots()
   }
 })
 
-// Previous step logic
+// <CHANGE> Prefetch active slots when service or staff changes to avoid loading later
+watch([selectedService, selectedStaff], async ([svc, staff]) => {
+  if (!svc) return
+  await fetchActiveSlots({ prefetch: true })
+})
+
+// Navigation helpers
 function goToPreviousStep() {
-  if (currentStep.value === 'StepService') {
-    currentStep.value = 'StepDepartment'
-  } else if (currentStep.value === 'StepStaff') {
-    currentStep.value = 'StepService'
-  } else if (currentStep.value === 'StepDateTime') {
-    currentStep.value = 'StepStaff'
-  } else if (currentStep.value === 'StepInformation') {
-    currentStep.value = 'StepDateTime'
-  }
+  if (currentStep.value === 'StepService') currentStep.value = 'StepDepartment'
+  else if (currentStep.value === 'StepStaff') currentStep.value = 'StepService'
+  else if (currentStep.value === 'StepDateTime') currentStep.value = 'StepStaff'
+  else if (currentStep.value === 'StepInformation') currentStep.value = 'StepDateTime'
 }
 
 function handleDepartmentSubmit() {
-  if (selectedDepartment.value) {
-    currentStep.value = 'StepService'
-  }
+  if (selectedDepartment.value) currentStep.value = 'StepService'
 }
 
 function handleServiceSubmit() {
-  if (selectedService.value) {
-    currentStep.value = 'StepStaff'
-  }
+  if (selectedService.value) currentStep.value = 'StepStaff'
 }
 
 function handleStaffSubmit() {
-  if (selectedStaff.value) {
-    currentStep.value = 'StepDateTime'
-  }
+  if (selectedStaff.value) currentStep.value = 'StepDateTime'
 }
 
 function getServiceDuration(serviceId) {
@@ -1329,15 +1142,12 @@ function getServiceDuration(serviceId) {
 }
 
 function goToNextStepDateTime() {
-  if (selectedSlot.value) {
-    currentStep.value = 'StepInformation'
-  }
+  if (selectedSlot.value) currentStep.value = 'StepInformation'
 }
 
 // Cache for contactId by email
 const contactIdCacheKey = 'restyle_contact_ids_by_email'
 
-// Utility to get/set contactId by email in localStorage
 function getContactIdByEmail(email) {
   if (!email) return null
   try {
@@ -1356,18 +1166,146 @@ function setContactIdForEmail(email, contactId) {
   } catch {}
 }
 
-async function handleInformationSubmit() {
-  if (!validateForm()) {
+// <CHANGE> Active slots with de-dupe, cancellation, and cache
+async function fetchActiveSlots({ prefetch = false } = {}) {
+  if (!selectedService.value) {
+    slotsForDate.value = []
     return
   }
 
-  bookingLoading.value = true
+  const serviceId = selectedService.value
+  // If staff not selected yet, prefetch for 'any' to avoid later loading
+  const userId = selectedStaff.value && selectedStaff.value !== 'any' ? selectedStaff.value : ''
 
+  const cacheKey = keyForActive(serviceId, userId)
+  const cached = activeSlotsCache.get(cacheKey)
+  if (cached) {
+    activeSlots.value = cached.slots
+    activeDay.value = cached.activeDay
+    calendarId.value = cached.calendarId
+    // Update available dates immediately (no loading)
+    syncAvailableDatesFromActiveSlots()
+    return
+  }
+
+  // Cancel previous in-flight
+  if (activeSlotsController) activeSlotsController.abort()
+  activeSlotsController = new AbortController()
+
+  if (!prefetch) {
+    loadingSlots.value = true
+    selectedSlot.value = ''
+    slotsForDate.value = []
+  }
+
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Activeslots?calendarId=${serviceId}`
+  if (userId) apiUrl += `&userId=${userId}`
+
+  try {
+    const response = await fetch(apiUrl, { signal: activeSlotsController.signal })
+    const data = await response.json()
+
+    if (data?.slots && data?.calendarId) {
+      activeSlots.value = data.slots
+      activeDay.value = data.activeDay || ''
+      calendarId.value = data.calendarId
+      activeSlotsCache.set(cacheKey, { slots: data.slots, activeDay: data.activeDay || '', calendarId: data.calendarId })
+
+      // Immediately reflect available dates from active slots
+      syncAvailableDatesFromActiveSlots()
+    } else {
+      // No slots
+      activeSlots.value = {}
+      availableDates.value = []
+      slotsForDate.value = []
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      // On error, keep UI stable; do not spam requests
+      // Optionally retry after a delay if needed
+    }
+  } finally {
+    if (!prefetch) loadingSlots.value = false
+  }
+}
+
+// <CHANGE> Date-specific slots with cache and cancellation
+async function fetchSlotsForDate(dateString, { silent = false } = {}) {
+  if (!selectedService.value || !dateString) {
+    slotsForDate.value = []
+    return
+  }
+
+  const serviceId = selectedService.value
+  const userId = selectedStaff.value && selectedStaff.value !== 'any' ? selectedStaff.value : ''
+
+  // 1) Use active slots cache first
+  const activeKey = keyForActive(serviceId, userId)
+  const activeCached = activeSlotsCache.get(activeKey)
+  if (activeCached?.slots?.[dateString]) {
+    const slotsWithStatus = activeCached.slots[dateString].map(t => ({
+      time: t,
+      isPast: isSlotInPastMST(t, dateString)
+    }))
+    slotsForDate.value = slotsWithStatus
+    return
+  }
+
+  // 2) If we fetched this date already, reuse
+  const dateKey = keyForDate(serviceId, userId, dateString)
+  const dateCached = dateSlotsCache.get(dateKey)
+  if (dateCached) {
+    slotsForDate.value = dateCached.map(t => ({
+      time: t,
+      isPast: isSlotInPastMST(t, dateString)
+    }))
+    return
+  }
+
+  // 3) Otherwise fetch
+  if (!silent) loadingSlots.value = true
+  if (dateSlotsController) dateSlotsController.abort()
+  dateSlotsController = new AbortController()
+
+  const date = new Date(dateString + 'T00:00:00')
+  const start = new Date(date); start.setHours(0, 0, 0, 0)
+  const end = new Date(date);   end.setHours(23, 59, 59, 999)
+  const startDate = start.getTime()
+  const endDate = end.getTime()
+
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
+  if (userId) apiUrl += `&userId=${userId}`
+
+  try {
+    const response = await fetch(apiUrl, { signal: dateSlotsController.signal })
+    const data = await response.json()
+    const formatted = data.formattedSlots || {}
+    const key = Object.keys(formatted)[0]
+    const allSlots = key ? formatted[key] : []
+
+    const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
+    dateSlotsCache.set(dateKey, filteredSlots)
+
+    slotsForDate.value = filteredSlots.map(t => ({
+      time: t,
+      isPast: isSlotInPastMST(t, dateString)
+    }))
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      slotsForDate.value = []
+    }
+  } finally {
+    if (!silent) loadingSlots.value = false
+  }
+}
+
+async function handleInformationSubmit() {
+  if (!validateForm()) return
+  bookingLoading.value = true
   try {
     // 1. Try to get contactId from localStorage by email
     let contactId = getContactIdByEmail(contactForm.value.email)
     if (!contactId) {
-      // Create contact if not found
       const params = new URLSearchParams({
         firstName: contactForm.value.firstName,
         lastName: contactForm.value.lastName,
@@ -1375,21 +1313,15 @@ async function handleInformationSubmit() {
         phone: contactForm.value.phone,
         notes: contactForm.value.notes || 'From landing page'
       })
-
-      console.log('Creating contact with params:', params.toString())
       const contactRes = await fetch(
         `https://restyle-api.netlify.app/.netlify/functions/customer?${params.toString()}`
       )
       const contactData = await contactRes.json()
-      console.log('Contact creation response:', contactData)
 
-      // ✅ Handle duplicate contact fallback
       if (
-        contactData?.details?.message ===
-          'This location does not allow duplicated contacts.' &&
+        contactData?.details?.message === 'This location does not allow duplicated contacts.' &&
         contactData?.details?.meta?.contactId
       ) {
-        console.warn('Duplicate detected, using existing contactId')
         contactId = contactData.details.meta.contactId
         setContactIdForEmail(contactForm.value.email, contactId)
       } else if (!contactData.success || !contactData.contact?.contact?.id) {
@@ -1398,10 +1330,7 @@ async function handleInformationSubmit() {
         contactId = contactData.contact.contact.id
         setContactIdForEmail(contactForm.value.email, contactId)
         finalContactId.value = contactId
-
       }
-    } else {
-      console.log('Using cached contactId:', contactId)
     }
 
     // 2. Book appointment
@@ -1430,12 +1359,9 @@ async function handleInformationSubmit() {
 
     let assignedUserId = selectedStaff.value
     if (assignedUserId === 'any' || !assignedUserId) {
-      const realStaff = staffRadioItems.value.filter(
-        (item) => item.value !== 'any'
-      )
+      const realStaff = staffRadioItems.value.filter((item) => item.value !== 'any')
       if (realStaff.length > 0) {
-        const randomStaff =
-          realStaff[Math.floor(Math.random() * realStaff.length)]
+        const randomStaff = realStaff[Math.floor(Math.random() * realStaff.length)]
         assignedUserId = randomStaff.value
       } else {
         throw new Error('No staff available for this service')
@@ -1445,16 +1371,14 @@ async function handleInformationSubmit() {
     let bookUrl = `https://restyle-api.netlify.app/.netlify/functions/Apointment?contactId=${contactId}&calendarId=${selectedService.value}&startTime=${startTime}&endTime=${endTime}`
     if (assignedUserId) bookUrl += `&assignedUserId=${assignedUserId}`
 
-    console.log('Booking URL:', bookUrl)
     const bookRes = await fetch(bookUrl)
     const bookData = await bookRes.json()
-    console.log('Booking response:', bookData)
-const redirectUrl = bookData.websiteUpdate.updatedContact.contact.website;
 
-// Redirect after 2 seconds
-setTimeout(() => {
-  window.location.href = redirectUrl;
-}, 2000); // 2000 milliseconds = 2 seconds
+    const redirectUrl = bookData.websiteUpdate.updatedContact.contact.website
+    setTimeout(() => {
+      window.location.href = redirectUrl
+    }, 2000)
+
     if (!bookData.response?.id) {
       throw new Error(bookData.error || 'Booking failed')
     }
@@ -1462,15 +1386,13 @@ setTimeout(() => {
     bookingResponse.value = bookData.response
     currentStep.value = 'StepSuccess'
   } catch (err) {
-    console.error('Booking error:', err)
+    // Handle booking error
   } finally {
     bookingLoading.value = false
   }
 }
 
-
 function resetBooking() {
-  // Reset all form data
   currentStep.value = 'StepDepartment'
   selectedDepartment.value = ''
   selectedService.value = ''
@@ -1498,7 +1420,6 @@ function resetBooking() {
 
 function selectDepartment(value) {
   selectedDepartment.value = value
-  // Wait for UI update, then move to next step
   setTimeout(() => {
     handleDepartmentSubmit()
   }, 100)
@@ -1518,34 +1439,12 @@ function selectStaff(value) {
   }, 100)
 }
 
-// --- Add this at the top of <script setup> ---
-const route = typeof useRoute === 'function' ? useRoute() : null
-const preselectedDepartmentId = ref('')
-
-// --- On mount, check for ?id=... in URL and preselect department ---
-onMounted(async () => {
-  // ...existing code...
-  // Check for ?id=... in URL (works for Nuxt or Vue Router projects)
-  let idFromQuery = ''
-  if (route && route.query && route.query.id) {
-    idFromQuery = route.query.id
-  } else if (typeof window !== 'undefined') {
-    // fallback for plain Vue: parse window.location.search
-    const params = new URLSearchParams(window.location.search)
-    idFromQuery = params.get('id')
-  }
-  if (idFromQuery) {
-    preselectedDepartmentId.value = idFromQuery
-  }
-})
-
-// --- After departmentRadioItems are loaded, auto-select department if preselectedDepartmentId is set ---
+// <CHANGE> Auto-select department if preselected via ?id=...
 watch([departmentRadioItems, preselectedDepartmentId], ([items, preId]) => {
   if (preId && items.length > 0) {
     const found = items.find(item => item.value === preId)
     if (found) {
       selectedDepartment.value = preId
-      // Optionally, auto-advance to next step:
       setTimeout(() => {
         handleDepartmentSubmit()
       }, 100)
