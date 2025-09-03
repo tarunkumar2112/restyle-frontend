@@ -454,6 +454,7 @@
                   <form class="space-y-6 information-depaerment-form" @submit.prevent="handleInformationSubmit">
                                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div>
+                         <label class="block text-sm font-medium text-gray-700 text-black">First Name *</label>
                          <UInput
                            v-model="contactForm.firstName"
                            label="First Name"
@@ -464,6 +465,7 @@
                          />
                        </div>
                        <div>
+                         <label class="block text-sm font-medium text-gray-700 text-black">Last Name *</label>
                          <UInput
                            v-model="contactForm.lastName"
                            label="Last Name"
