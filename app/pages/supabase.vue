@@ -452,57 +452,48 @@
                 <!-- Contact Form -->
                 <div class="space-y-6">
                   <form class="space-y-6 information-depaerment-form" @submit.prevent="handleInformationSubmit">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <UInput
-                          v-model="contactForm.firstName"
-                          label="First Name"
-                          placeholder="Enter your first name"
-                          size="lg"
-                          :error="validationErrors.firstName"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <UInput
-                          v-model="contactForm.lastName"
-                          label="Last Name"
-                          placeholder="Enter your last name"
-                          size="lg"
-                          :error="validationErrors.lastName"
-                          required
-                        />
-                      </div>
-                      <div>
-                     <UInput
-  v-model="contactForm.phone"
-  label="Phone Number"
-  placeholder="+1 (555) 123-4567"
-  size="lg"
-  :error="validationErrors.phone"
-  required
-/>
-
-                      </div>
-                      <div>
-                        <UInput
-                          v-model="contactForm.email"
-                          label="Email Address"
-                          placeholder="your@email.com[optional]"
-                          type="email"
-                          size="lg"
-                          :error="validationErrors.email"
-                        />
-                      </div>
-                    </div>
-                    
-                    <UTextarea
-                      v-model="contactForm.notes"
-                      label="Additional Notes (Optional)"
-                      placeholder="Any special requests or information we should know?"
-                      size="lg"
-                      rows="3"
-                    />
+                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                         <UInput
+                           v-model="contactForm.firstName"
+                           label="First Name"
+                           placeholder="Enter your first name"
+                           size="lg"
+                           :error="validationErrors.firstName"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <UInput
+                           v-model="contactForm.lastName"
+                           label="Last Name"
+                           placeholder="Enter your last name"
+                           size="lg"
+                           :error="validationErrors.lastName"
+                           required
+                         />
+                       </div>
+                     </div>
+                     
+                     <!-- USA Phone Number with Flag -->
+                     <div class="space-y-2">
+                       <label class="block text-sm font-medium text-gray-700">Phone Number *</label>
+                       <div class="flex items-center space-x-3">
+                         <div class="flex items-center space-x-2 bg-gray-50 border border-gray-300 rounded-l-lg px-3 py-3">
+                           <span class="text-2xl">🇺🇸</span>
+                           <span class="text-sm font-medium text-gray-700">+1</span>
+                         </div>
+                         <UInput
+                           v-model="contactForm.phone"
+                           placeholder="(555) 123-4567"
+                           size="lg"
+                           :error="validationErrors.phone"
+                           class="flex-1 rounded-l-none"
+                           required
+                         />
+                       </div>
+                       <div class="text-xs text-gray-500">Enter your 10-digit US phone number</div>
+                     </div>
                     
                     <UCheckbox
                       v-model="contactForm.optIn"
@@ -673,16 +664,13 @@ const workingSlotsLoaded = ref(false)
 const validationErrors = ref({
   firstName: '',
   lastName: '',
-  phone: '',
-  email: ''
+  phone: ''
 })
 
 const contactForm = ref({
   firstName: '',
   lastName: '',
   phone: '',
-  email: '',
-  notes: '',
   optIn: false
 })
 
@@ -690,26 +678,21 @@ const isFormValid = computed(() => {
   return contactForm.value.firstName.trim() && 
          contactForm.value.lastName.trim() && 
          contactForm.value.phone.trim() && 
-         isValidPhone(contactForm.value.phone)
+         isValidUSPhone(contactForm.value.phone)
 })
 
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-function isValidPhone(phone) {
-  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/
-  const cleanPhone = phone.replace(/[\s\-()]/g, '')
-  return cleanPhone.length >= 10 && phoneRegex.test(cleanPhone)
+function isValidUSPhone(phone) {
+  // Remove all non-digit characters
+  const cleanPhone = phone.replace(/\D/g, '')
+  // Must be exactly 10 digits for US phone number
+  return cleanPhone.length === 10
 }
 
 function validateForm() {
   validationErrors.value = {
     firstName: '',
     lastName: '',
-    phone: '',
-    email: ''
+    phone: ''
   }
 
   if (!contactForm.value.firstName.trim()) {
@@ -720,13 +703,8 @@ function validateForm() {
   }
   if (!contactForm.value.phone.trim()) {
     validationErrors.value.phone = 'Phone number is required'
-  } else if (!isValidPhone(contactForm.value.phone)) {
-    validationErrors.value.phone = 'Please enter a valid phone number'
-  }
-  if (contactForm.value.email.trim()) {
-    if (!isValidEmail(contactForm.value.email)) {
-      validationErrors.value.email = 'Please enter a valid email address'
-    }
+  } else if (!isValidUSPhone(contactForm.value.phone)) {
+    validationErrors.value.phone = 'Please enter a valid 10-digit US phone number'
   }
 
   return Object.values(validationErrors.value).every(error => !error)
@@ -1369,24 +1347,26 @@ function goToNextStepDateTime() {
   }
 }
 
-// Cache for contactId by email
-const contactIdCacheKey = 'restyle_contact_ids_by_email'
+// Cache for contactId by phone
+const contactIdCacheKey = 'restyle_contact_ids_by_phone'
 
-// Utility to get/set contactId by email in localStorage
-function getContactIdByEmail(email) {
-  if (!email) return null
+// Utility to get/set contactId by phone in localStorage
+function getContactIdByPhone(phone) {
+  if (!phone) return null
   try {
+    const cleanPhone = phone.replace(/\D/g, '')
     const map = JSON.parse(localStorage.getItem(contactIdCacheKey) || '{}')
-    return map[email.toLowerCase()] || null
+    return map[cleanPhone] || null
   } catch {
     return null
   }
 }
-function setContactIdForEmail(email, contactId) {
-  if (!email || !contactId) return
+function setContactIdForPhone(phone, contactId) {
+  if (!phone || !contactId) return
   try {
+    const cleanPhone = phone.replace(/\D/g, '')
     const map = JSON.parse(localStorage.getItem(contactIdCacheKey) || '{}')
-    map[email.toLowerCase()] = contactId
+    map[cleanPhone] = contactId
     localStorage.setItem(contactIdCacheKey, JSON.stringify(map))
   } catch {}
 }
@@ -1399,17 +1379,16 @@ async function handleInformationSubmit() {
   bookingLoading.value = true
 
   try {
-    // 1. Try to get contactId from localStorage by email
-    let contactId = getContactIdByEmail(contactForm.value.email)
-    if (!contactId) {
-      // Create contact if not found
-      const params = new URLSearchParams({
-        firstName: contactForm.value.firstName,
-        lastName: contactForm.value.lastName,
-        email: contactForm.value.email,
-        phone: contactForm.value.phone,
-        notes: contactForm.value.notes || 'From landing page'
-      })
+          // 1. Try to get contactId from localStorage by phone
+      let contactId = getContactIdByPhone(contactForm.value.phone)
+      if (!contactId) {
+        // Create contact if not found
+        const params = new URLSearchParams({
+          firstName: contactForm.value.firstName,
+          lastName: contactForm.value.lastName,
+          phone: contactForm.value.phone,
+          notes: 'From landing page'
+        })
 
       console.log('Creating contact with params:', params.toString())
       const contactRes = await fetch(
@@ -1426,12 +1405,12 @@ async function handleInformationSubmit() {
       ) {
         console.warn('Duplicate detected, using existing contactId')
         contactId = contactData.details.meta.contactId
-        setContactIdForEmail(contactForm.value.email, contactId)
+        setContactIdForPhone(contactForm.value.phone, contactId)
       } else if (!contactData.success || !contactData.contact?.contact?.id) {
         throw new Error('Contact creation failed')
       } else {
         contactId = contactData.contact.contact.id
-        setContactIdForEmail(contactForm.value.email, contactId)
+        setContactIdForPhone(contactForm.value.phone, contactId)
         finalContactId.value = contactId
 
       }
@@ -1517,15 +1496,12 @@ function resetBooking() {
     firstName: '',
     lastName: '',
     phone: '',
-    email: '',
-    notes: '',
     optIn: false
   }
   validationErrors.value = {
     firstName: '',
     lastName: '',
-    phone: '',
-    email: ''
+    phone: ''
   }
   bookingResponse.value = null
   slotsForDate.value = []
