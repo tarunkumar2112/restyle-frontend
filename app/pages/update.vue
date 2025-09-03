@@ -503,9 +503,7 @@ const canProceedToNextStep = computed(() => {
   return true
 })
 
-// Add a new cache for slots
-const slotsCache = ref({})
-const slotsCacheTimestamp = ref({})
+// Cache is no longer needed as we use prefetched working slots
 
 // Initialize component
 onMounted(async () => {
@@ -560,7 +558,7 @@ async function fetchAppointmentDetails() {
       selectedCalendarDate.value = new CalendarDate(year, month, day)
       
       selectedSlot.value = formatAppointmentTime(appointmentData.startTime)
-      calendarId.value = appointmentData.calendarId
+      // calendarId.value = appointmentData.calendarId // This line was removed as per new_code
       
       console.log('[v0] Appointment loaded successfully:', appointmentData.id)
     } else {
@@ -654,20 +652,11 @@ async function fetchWorkingSlots() {
     if (data && data.slots) {
       workingSlots.value = data.slots
       workingSlotsLoaded.value = true
-      // Prime first selected date/slots
-      const dates = Object.keys(workingSlots.value).sort()
-      if (dates.length > 0) {
-        const first = dates[0]
-        selectedDateString.value = first
-        const [y, m, d] = first.split('-').map(Number)
-        selectedCalendarDate.value = new CalendarDate(y, m, d)
-        const slotsWithStatus = (workingSlots.value[first] || []).map(t => ({
-          time: t,
-          isPast: isSlotInPastMST(t, first),
-          isUnavailable: false
-        })).filter(s => !s.isPast)
-        slotsForDate.value = slotsWithStatus
-      }
+      
+      // Generate available dates from working slots
+      generateAvailableDates()
+      
+      console.log('Working slots loaded successfully:', data.slots)
     } else {
       console.error('Invalid working slots response:', data)
       workingSlots.value = {}
@@ -683,43 +672,88 @@ async function fetchWorkingSlots() {
 
 async function generateAvailableDates() {
   const dates = []
-  const todayDate = new Date()
-  const mountainTimeZone = 'America/Denver'
+  
+  // Get today's date string for comparison (YYYY-MM-DD format)
+  const today = new Date()
+  const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   
   const currentBookingDate = currentAppointment.value.startTime ? new Date(currentAppointment.value.startTime) : null
   
-  for (let i = 1; i < 31; i++) {
-    const date = new Date(todayDate)
-    date.setDate(todayDate.getDate() + i)
+  // If we have working slots, use them directly from API
+  if (workingSlotsLoaded.value && Object.keys(workingSlots.value).length > 0) {
+    const workingDates = Object.keys(workingSlots.value)
+      .filter(dateString => {
+        // Only include dates from today onwards (no past dates)
+        return dateString >= todayDateString
+      })
+      .sort()
     
-    // Determine weekday in Mountain Time
-    const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
-    const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
-    const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
-    
-    // Skip weekends
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue
-    
-    // Skip dates <= current booking date (compare in MT date-only)
-    if (currentBookingDate) {
-      const bookingName = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(currentBookingDate) // YYYY-MM-DD
-      const dateName = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(date)
-      if (dateName <= bookingName) continue
-    }
-    
-    // Format display labels in MT
-    const dateString = new Intl.DateTimeFormat('en-CA', { timeZone: mountainTimeZone }).format(date)
-    const dayName = weekdayName
-    const dateDisplay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: mountainTimeZone }).format(date)
-    const label = i === 1 ? 'Tomorrow' : dayName
-    
-    dates.push({
-      dateString,
-      dayName,
-      dateDisplay,
-      label,
-      isToday: false
+    workingDates.forEach((dateString, index) => {
+      // Parse the date string from API to get day name and display
+      const [year, month, day] = dateString.split('-').map(Number)
+      const date = new Date(year, month - 1, day) // month is 0-indexed in JS Date
+      
+      // Get day name from the actual date (not calculated)
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
+      const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      
+      // Determine label based on actual date difference from today
+      let label = ''
+      if (dateString === todayDateString) {
+        label = 'TODAY'
+      } else if (dateString === getTomorrowDateString()) {
+        label = 'TOMORROW'
+      } else if (isThisWeek(dateString)) {
+        label = 'THIS WEEK'
+      } else {
+        label = 'NEXT WEEK'
+      }
+      
+      dates.push({
+        dateString,
+        dayName,
+        dateDisplay,
+        label,
+        date
+      })
     })
+  } else {
+    // Fallback to generating next 7 working days if no working slots
+    let workingDaysCount = 0
+    let i = 0
+    
+    while (workingDaysCount < 7 && i < 14) {
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
+
+      // Skip weekends
+      const dayOfWeek = date.getDay()
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        i++
+        continue
+      }
+      
+      const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
+      const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      
+      let label = ''
+      if (workingDaysCount === 0) label = 'TODAY'
+      else if (workingDaysCount === 1) label = 'TOMORROW'
+      else if (workingDaysCount <= 5) label = 'THIS WEEK'
+      else label = 'NEXT WEEK'
+      
+      dates.push({
+        dateString,
+        dayName,
+        dateDisplay,
+        label,
+        date
+      })
+      
+      workingDaysCount++
+      i++
+    }
   }
   
   availableDates.value = dates
@@ -746,203 +780,35 @@ async function fetchSlotsForDate(dateString) {
   selectedSlot.value = ''
   loadingSlots.value = true
 
-  const serviceId = currentAppointment.value.calendarId
-  const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-  const cacheKey = `${serviceId}_${userId || 'any'}`
-
-  // Check cache first (cache valid for 5 minutes)
-  const cacheAge = Date.now() - (slotsCacheTimestamp.value[cacheKey] || 0)
-  const isCacheValid = cacheAge < 5 * 60 * 1000 // 5 minutes
-
-  if (isCacheValid && slotsCache.value[cacheKey] && slotsCache.value[cacheKey][dateString]) {
-    const slotsForSelectedDate = slotsCache.value[cacheKey][dateString]
+  // Use working slots data if available (prefetched from single endpoint)
+  if (workingSlots.value[dateString]) {
+    const slotsForSelectedDate = workingSlots.value[dateString]
     const slotsWithStatus = slotsForSelectedDate.map(slot => ({
       time: slot,
       isPast: isSlotInPastMST(slot, dateString),
       isUnavailable: false
     }))
     
-    slotsForDate.value = slotsWithStatus
-    loadingSlots.value = false
-    console.log('Using cached slots for date:', dateString, slotsWithStatus)
-    return
-  }
-
-  // Check active slots cache
-  if (activeSlots.value[dateString]) {
-    const slotsForSelectedDate = activeSlots.value[dateString]
-    const slotsWithStatus = slotsForSelectedDate.map(slot => ({
-      time: slot,
-      isPast: isSlotInPastMST(slot, dateString),
-      isUnavailable: false
-    }))
+    // Filter out past slots and only show future/current slots
+    const availableSlots = slotsWithStatus.filter(slot => !slot.isPast)
     
-    slotsForDate.value = slotsWithStatus
+    slotsForDate.value = availableSlots
     loadingSlots.value = false
-    console.log('Using active slots cache for date:', dateString, slotsWithStatus)
+    console.log('Using working slots for date:', dateString, availableSlots)
     return
   }
 
-  // Try multiple API endpoints with retry logic
-  const maxRetries = 2
-  let lastError = null
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      let slots = []
-      
-      if (attempt === 0) {
-        // First attempt: Try the original API
-        slots = await fetchSlotsFromAPI(dateString, serviceId, userId)
-      } else if (attempt === 1) {
-        // Second attempt: Try with different parameters
-        slots = await fetchSlotsFromAPI(dateString, serviceId, userId, true)
-      } else {
-        // Third attempt: Try without user filter
-        slots = await fetchSlotsFromAPI(dateString, serviceId, '', true)
-      }
-
-      if (slots && slots.length > 0) {
-        const slotsWithStatus = slots.map(slot => ({
-          time: slot,
-          isPast: isSlotInPastMST(slot, dateString),
-          isUnavailable: false // You can add logic here to check if slot is unavailable
-        }))
-
-        slotsForDate.value = slotsWithStatus
-        
-        // Update cache
-        if (!slotsCache.value[cacheKey]) {
-          slotsCache.value[cacheKey] = {}
-        }
-        slotsCache.value[cacheKey][dateString] = slots
-        slotsCacheTimestamp.value[cacheKey] = Date.now()
-        
-        console.log('Slots loaded successfully for date:', dateString, slotsWithStatus)
-        break
-      } else {
-        lastError = new Error('No slots returned from API')
-      }
-    } catch (error) {
-      console.error(`Attempt ${attempt + 1} failed for date ${dateString}:`, error)
-      lastError = error
-      
-      if (attempt === maxRetries) {
-        // All attempts failed, show empty slots but don't show error
-        slotsForDate.value = []
-        console.log('All attempts failed, showing empty slots for date:', dateString)
-      }
-    }
-  }
-
+  // If no weekly slots for this date, show empty
+  slotsForDate.value = []
   loadingSlots.value = false
+  console.log('No weekly slots available for date:', dateString)
 }
 
 
 
-// Helper function to fetch slots from API (copied from supabase.vue)
-async function fetchSlotsFromAPI(dateString, serviceId, userId, useAlternative = false) {
-  const date = new Date(dateString + 'T00:00:00')
-  const start = new Date(date)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(date)
-  end.setHours(23, 59, 59, 999)
+// These functions are no longer needed as we use prefetched working slots
 
-  const startDate = start.getTime()
-  const endDate = end.getTime()
-
-  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
-  
-  if (userId && !useAlternative) {
-    apiUrl += `&userId=${userId}`
-  }
-
-  console.log('API URL for date:', apiUrl)
-
-  const response = await fetch(apiUrl)
-  const data = await response.json()
-  
-  if (!data || !data.formattedSlots) {
-    throw new Error('Invalid API response')
-  }
-  
-  const formatted = data.formattedSlots || {}
-  const key = Object.keys(formatted)[0]
-  const allSlots = key ? formatted[key] : []
-  
-  // Filter slots by business hours
-  const filteredSlots = filterSlotsByBusinessHours(allSlots, date)
-  
-  return filteredSlots
-}
-
-// Function to filter slots by business hours
-function filterSlotsByBusinessHours(slots, date) {
-  if (!slots || slots.length === 0) return []
-  
-  const mountainTimeZone = 'America/Denver'
-  // Determine weekday in Mountain Time
-  const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
-  const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
-  const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
-  
-  // Business hours in Mountain Time: Mon-Wed/Fri 9-19, Thu 11-19, closed weekends
-  let hours = null
-  if (dayOfWeek === 4) {
-    hours = { start: 11, end: 19 }
-  } else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-    hours = { start: 9, end: 19 }
-  }
-  if (!hours) return []
-  
-  return slots.filter(slot => {
-    const timeMatch = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!timeMatch) return false
-    
-    let hour = parseInt(timeMatch[1])
-    const minute = parseInt(timeMatch[2])
-    const period = timeMatch[3].toUpperCase()
-    
-    if (period === 'PM' && hour !== 12) hour += 12
-    if (period === 'AM' && hour === 12) hour = 0
-    
-    const slotTime = hour + (minute / 60)
-    return slotTime >= hours.start && slotTime < hours.end
-  })
-}
-
-// Function to check if a slot is available for booking
-async function checkSlotAvailability(slotTime, dateString, serviceId, userId) {
-  try {
-    // Convert slot time to timestamp
-    const date = new Date(dateString + 'T00:00:00')
-    const timeMatch = slotTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!timeMatch) return false
-    
-    let hour = parseInt(timeMatch[1])
-    const minute = parseInt(timeMatch[2])
-    const period = timeMatch[3].toUpperCase()
-    
-    if (period === 'PM' && hour !== 12) hour += 12
-    if (period === 'AM' && hour === 12) hour = 0
-    
-    date.setHours(hour, minute, 0, 0)
-    
-    // Convert to UTC (MST is UTC-7)
-    const mstOffset = -7 * 60 * 60 * 1000
-    const utcTime = new Date(date.getTime() - mstOffset)
-    
-    // Make API call to check availability
-    const apiUrl = `https://restyle-api.netlify.app/.netlify/functions/checkSlotAvailability?calendarId=${serviceId}&startTime=${encodeURIComponent(utcTime.toISOString())}`
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    
-    return data.available === true
-  } catch (error) {
-    console.error('Error checking slot availability:', error)
-    return true // Assume available if check fails
-  }
-}
+// This function is no longer needed as we use prefetched working slots
 
 async function selectStaff(staffId) {
   selectedStaff.value = staffId
@@ -950,14 +816,10 @@ async function selectStaff(staffId) {
   loadingSlots.value = true
   slotsForDate.value = []
   
-  // Clear cache when staff changes to get fresh data
-  const serviceId = currentAppointment.value.calendarId
-  const cacheKey = `${serviceId}_${staffId === 'any' ? 'any' : staffId}`
-  if (slotsCache.value[cacheKey]) {
-    delete slotsCache.value[cacheKey]
+  // Refresh slots when staff changes
+  if (selectedDateString.value) {
+    await fetchSlotsForDate(selectedDateString.value)
   }
-  
-  await fetchActiveSlots() // Refresh slots when staff changes
   
   // Auto-select first available date after staff selection
   if (availableDates.value.length > 0 && currentAppointment.value.calendarId) {
@@ -1010,18 +872,6 @@ async function updateAppointment() {
   updateSuccess.value = false
   
   try {
-    // First, validate that the selected slot is still available
-    if (selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime) || 
-        selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)) {
-      
-      const isSlotStillAvailable = await validateSlotAvailability()
-      if (!isSlotStillAvailable) {
-        // Slot is no longer available, refresh slots and show error
-        await refreshSlotsForCurrentDate()
-        throw new Error('The selected time slot is no longer available. Please choose a different time.')
-      }
-    }
-    
     // Build update URL with only changed parameters
     let updateUrl = `https://restyle-api.netlify.app/.netlify/functions/updateappointment?appointmentId=${appointmentId.value}`
     
@@ -1084,90 +934,18 @@ async function updateAppointment() {
         currentStep.value = 4
       }, 500)
     } else {
-      // Handle specific error cases
-      if (data.error && data.error.includes('no longer available')) {
-        // Slot was taken, refresh and show better error
-        await refreshSlotsForCurrentDate()
-        throw new Error('The selected time slot is no longer available. Please choose a different time.')
-      } else {
-        throw new Error(data.error || data.details?.message || 'Update failed')
-      }
+      throw new Error(data.error || data.details?.message || 'Update failed')
     }
     
   } catch (error) {
     console.error('Update error:', error)
-    
-    // Show user-friendly error message
-    if (error.message.includes('no longer available')) {
-      alert('The selected time slot is no longer available. Please choose a different time.')
-      // Go back to step 2 to let user select a new time
-      currentStep.value = 2
-    } else {
-      alert('Failed to update appointment. Please try again.')
-    }
+    alert('Failed to update appointment. Please try again.')
   } finally {
     updateLoading.value = false
   }
 }
 
-// New function to validate slot availability before update
-async function validateSlotAvailability() {
-  if (!selectedDateString.value || !selectedSlot.value) return true
-  
-  try {
-    // Fetch fresh slots for the selected date
-    const serviceId = currentAppointment.value.calendarId
-    const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-    
-    const date = new Date(selectedDateString.value + 'T00:00:00')
-    const start = new Date(date)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(date)
-    end.setHours(23, 59, 59, 999)
-
-    const startDate = start.getTime()
-    const endDate = end.getTime()
-
-    let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Allstaffslot?calendarId=${serviceId}&startDate=${startDate}&endDate=${endDate}`
-    if (userId) {
-      apiUrl += `&userId=${userId}`
-    }
-
-    const response = await fetch(apiUrl)
-    const data = await response.json()
-    
-    if (data.formattedSlots) {
-      const formatted = data.formattedSlots || {}
-      const key = Object.keys(formatted)[0]
-      const availableSlots = key ? formatted[key] : []
-      
-      // Check if our selected slot is still in the available slots
-      return availableSlots.includes(selectedSlot.value)
-    }
-    
-    return false
-  } catch (error) {
-    console.error('Error validating slot availability:', error)
-    return false
-  }
-}
-
-// New function to refresh slots for current date
-async function refreshSlotsForCurrentDate() {
-  if (selectedDateString.value) {
-    // Clear cache for this date to force fresh fetch
-    const serviceId = currentAppointment.value.calendarId
-    const userId = selectedStaff.value === 'any' ? '' : selectedStaff.value
-    const cacheKey = `${serviceId}_${userId || 'any'}`
-    
-    if (slotsCache.value[cacheKey]) {
-      delete slotsCache.value[cacheKey][selectedDateString.value]
-    }
-    
-    // Fetch fresh slots
-    await fetchSlotsForDate(selectedDateString.value)
-  }
-}
+// These functions are no longer needed as we use prefetched working slots
 
 function goBackHome() {
   // Navigate to home page - adjust URL as needed
@@ -1285,6 +1063,22 @@ function formatDateForDisplay(dateString) {
 
 function navigateDate(direction) {
   currentDateIndex.value += direction
+}
+
+// Helper functions for date generation
+function getTomorrowDateString() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
+}
+
+function isThisWeek(dateString) {
+  const today = new Date()
+  const endOfWeek = new Date(today)
+  endOfWeek.setDate(today.getDate() + (6 - today.getDay()))
+  
+  const targetDate = new Date(dateString)
+  return targetDate <= endOfWeek
 }
 
 // Compute duration for Summary card from appointment
