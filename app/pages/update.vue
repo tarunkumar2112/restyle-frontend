@@ -245,9 +245,7 @@
                     </div>
                   </div>
                   <div v-else class="space-y-4">
-                    <div class="text-sm text-gray-600 mb-3">
-                      {{ slotStatusMessage }} for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
-                    </div>
+                                         
                     <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                       <UButton
                         v-for="slot in enabledSlotsForDate"
