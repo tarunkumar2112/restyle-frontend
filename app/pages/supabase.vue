@@ -457,7 +457,7 @@
                          <UInput
                            v-model="contactForm.firstName"
                            label="First Name"
-                           placeholder="Enter your first name"
+                           placeholder="First Name"
                            size="lg"
                            :error="validationErrors.firstName"
                            required
@@ -467,7 +467,7 @@
                          <UInput
                            v-model="contactForm.lastName"
                            label="Last Name"
-                           placeholder="Enter your last name"
+                           placeholder="Last Name"
                            size="lg"
                            :error="validationErrors.lastName"
                            required
@@ -476,10 +476,10 @@
                      </div>
                      
                      <!-- USA Phone Number with Flag -->
-                     <div class="space-y-2">
-                       <label class="block text-sm font-medium text-gray-700">Phone Number *</label>
-                       <div class="flex items-center space-x-3">
-                         <div class="flex items-center space-x-2 bg-gray-50 border border-gray-300 rounded-l-lg px-3 py-3">
+                     <div class="space-y-3">
+                       <label class="block text-sm font-medium text-gray-700 text-black">Phone Number *</label>
+                       <div class="flex items-center phone-input-container">
+                         <div class="country-code">
                            <span class="text-2xl">🇺🇸</span>
                            <span class="text-sm font-medium text-gray-700">+1</span>
                          </div>
@@ -488,18 +488,18 @@
                            placeholder="(555) 123-4567"
                            size="lg"
                            :error="validationErrors.phone"
-                           class="flex-1 rounded-l-none"
+                           class="flex-1 phone-input"
                            required
                          />
                        </div>
                        <div class="text-xs text-gray-500">Enter your 10-digit US phone number</div>
                      </div>
                     
-                    <UCheckbox
-                      v-model="contactForm.optIn"
-                      label="I would like to receive updates and promotional offers via email"
-                      size="lg"
-                    />
+                                         <UCheckbox
+                       v-model="contactForm.optIn"
+                       label="I would like to receive updates and promotional offers via SMS"
+                       size="lg"
+                     />
                     
                     <UButton
                       type="submit"
@@ -1580,6 +1580,33 @@ watch([departmentRadioItems, preselectedDepartmentId], ([items, preId]) => {
 /* Custom scrollbar for slots */
 .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
+}
+
+/* Phone input styling */
+.phone-input-container {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.phone-input-container .country-code {
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-right: none;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.phone-input-container .phone-input {
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+}
+
+.phone-input-container .phone-input:focus {
+  border-left: none;
+  box-shadow: none;
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
