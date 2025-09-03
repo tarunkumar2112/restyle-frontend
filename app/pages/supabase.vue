@@ -479,13 +479,10 @@
                      <div class="space-y-3">
                        <label class="block text-sm font-medium text-gray-700 text-black">Phone Number *</label>
                        <div class="flex items-center phone-input-container">
-                         <div class="country-code">
-                           <span class="text-2xl">🇺🇸</span>
-                           <span class="text-sm font-medium text-gray-700">+1</span>
-                         </div>
+                       
                          <UInput
                            v-model="contactForm.phone"
-                           placeholder="(555) 123-4567"
+                           placeholder="+1 (555) 123-4567"
                            size="lg"
                            :error="validationErrors.phone"
                            class="flex-1 phone-input"
