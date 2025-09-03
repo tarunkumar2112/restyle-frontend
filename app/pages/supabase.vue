@@ -1055,12 +1055,10 @@ async function fetchSlotsForDate(dateString) {
 function isSlotInPastMST(slotTime, dateString) {
   if (!dateString || !slotTime) return false
   
-  // Get current time in MST (Mountain Standard Time - UTC-7)
+  // Get current time in local timezone
   const now = new Date()
-  const mstOffset = -7 * 60 * 60 * 1000 // MST is UTC-7
-  const nowMST = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + mstOffset)
   
-  // Parse the date string (YYYY-MM-DD format)
+  // Parse the date string (YYYY-MM-DD format) from API
   const [year, month, day] = dateString.split('-').map(Number)
   const slotDate = new Date(year, month - 1, day) // month is 0-indexed in JS Date
   
@@ -1077,10 +1075,8 @@ function isSlotInPastMST(slotTime, dateString) {
   
   slotDate.setHours(hour, minute, 0, 0)
   
-  // Convert slot time to MST for comparison
-  const slotMST = new Date(slotDate.getTime() + (slotDate.getTimezoneOffset() * 60 * 1000) + mstOffset)
-  
-  return slotMST < nowMST
+  // Compare with current time (both in local timezone)
+  return slotDate < now
 }
 
 const currentDateIndex = ref(0)
@@ -1092,27 +1088,27 @@ const visibleDates = computed(() => {
 function generateAvailableDates() {
   const dates = []
   
-  // Get today's date in Mountain Time
+  // Get today's date string for comparison (YYYY-MM-DD format)
   const today = new Date()
-  const mountainTimeZone = 'America/Denver'
-  const todayMST = new Intl.DateTimeFormat('en-US', { timeZone: mountainTimeZone }).format(today)
-  const todayParts = todayMST.split('/')
   const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   
-  // If we have weekly slots, filter and sort them properly
+  // If we have weekly slots, use them directly from API
   if (weeklySlotsLoaded.value && Object.keys(weeklySlots.value).length > 0) {
     const weeklyDates = Object.keys(weeklySlots.value)
       .filter(dateString => {
-        // Only include dates from today onwards
+        // Only include dates from today onwards (no past dates)
         return dateString >= todayDateString
       })
       .sort()
     
     weeklyDates.forEach((dateString, index) => {
-      const date = new Date(dateString + 'T00:00:00')
+      // Parse the date string from API to get day name and display
+      const [year, month, day] = dateString.split('-').map(Number)
+      const date = new Date(year, month - 1, day) // month is 0-indexed in JS Date
       
-      const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
-      const dateDisplay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: mountainTimeZone }).format(date)
+      // Get day name from the actual date (not calculated)
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
+      const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       
       // Determine label based on actual date difference from today
       let label = ''
@@ -1140,17 +1136,15 @@ function generateAvailableDates() {
       const date = new Date(today)
       date.setDate(today.getDate() + i)
 
-      // Compute weekday in Mountain Time and skip Sat/Sun
-      const weekdayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
-      const weekdayToIndex = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 }
-      const dayOfWeek = weekdayToIndex[weekdayName] ?? date.getDay()
+      // Skip weekends
+      const dayOfWeek = date.getDay()
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         continue
       }
       
       const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-      const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: mountainTimeZone }).format(date)
-      const dateDisplay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: mountainTimeZone }).format(date)
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
+      const dateDisplay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       
       let label = ''
       if (i === 0) label = 'TODAY'
@@ -1229,6 +1223,7 @@ const enabledSlotsForDate = computed(() => {
 
 function formatDateForDisplay(dateString) {
   if (!dateString) return ''
+  // Use the date string directly from API without conversion
   const [year, month, day] = dateString.split('-').map(Number)
   const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('en-US', { 
