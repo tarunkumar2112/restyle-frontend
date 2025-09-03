@@ -1,0 +1,1 @@
+# Remove the Day if only have the past slots no active slots.
