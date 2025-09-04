@@ -228,7 +228,7 @@
                     variant="ghost"
                     size="sm"
                     @click="navigateDate(1)"
-                    :disabled="currentDateIndex >= availableDates.length - 3"
+                    :disabled="currentDateIndex >= availableDates.length - (typeof window !== 'undefined' && window.innerWidth < 640 ? 1 : 3)"
                     class="p-2"
                   >
                     <UIcon name="i-lucide-chevron-right" class="text-xl" />
@@ -451,7 +451,10 @@ const availableDates = ref([])
 const currentDateIndex = ref(0)
 
 const visibleDates = computed(() => {
-  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
+  // Show only 1 date on mobile, 3 on larger screens
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const dateCount = isMobile ? 1 : 3
+  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + dateCount)
 })
 
 // Loading state for dates to avoid initial empty flash
@@ -1060,7 +1063,15 @@ function formatDateForDisplay(dateString) {
 }
 
 function navigateDate(direction) {
-  currentDateIndex.value += direction
+  const newIndex = currentDateIndex.value + direction
+  // Calculate max index based on screen size (mobile shows 1, desktop shows 3)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const dateCount = isMobile ? 1 : 3
+  const maxIndex = availableDates.value.length - dateCount
+  
+  if (newIndex >= 0 && newIndex <= maxIndex) {
+    currentDateIndex.value = newIndex
+  }
 }
 
 // Helper functions for date generation
