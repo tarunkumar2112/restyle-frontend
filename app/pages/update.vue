@@ -20,7 +20,7 @@
 
       <!-- Update form -->
       <div v-else class="w-full max-w-4xl overflow-hidden department-block">
-        <div class="p-8 department-inner">
+        <div class="sm:p-8 department-inner">
           <!-- Header -->
   
 
@@ -200,7 +200,7 @@
                     <UIcon name="i-lucide-chevron-left" class="text-xl" />
                   </UButton>
                   
-                  <div class="flex-1 grid grid-cols-3 gap-4 mx-4">
+                  <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:mx-4">
                     <div
                       v-for="(dateInfo, index) in visibleDates"
                       :key="dateInfo.dateString"
@@ -246,7 +246,7 @@
                   </div>
                   <div v-else class="space-y-4">
                                          
-                    <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-4 max-h-80 overflow-y-auto pr-2">
                       <UButton
                         v-for="slot in enabledSlotsForDate"
                         :key="slot.time"
@@ -328,16 +328,16 @@
 
 
               <!-- Changes Summary -->
-              <div v-if="hasChanges" class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 class="font-bold text-blue-800 mb-2">Summary of Changes:</h4>
+              <div v-if="hasChanges" class="p-4 bg-red-50 rounded-lg border border-red-200">
+                <h4 class=" text-[18px] font-bold text-black mb-2 sm:text-[20px]">Summary of Changes:</h4>
                 <ul class="text-sm text-blue-700 space-y-1">
-                  <li v-if="selectedStaff && selectedStaff !== currentAppointment.assignedUserId">
+                  <li class="text-black text-sm font-inter" v-if="selectedStaff && selectedStaff !== currentAppointment.assignedUserId">
                     • Stylist changed to {{ getSelectedStaffName() }}
                   </li>
-                  <li v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)">
+                  <li class="text-black text-sm font-inter" v-if="selectedDateString !== formatAppointmentDateString(currentAppointment.startTime)">
                     • Date changed to {{ formatDateForDisplay(selectedDateString) }}
                   </li>
-                  <li v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)">
+                  <li class="text-black text-sm font-inter" v-if="selectedSlot !== formatAppointmentTime(currentAppointment.startTime)">
                     • Time changed to {{ selectedSlot }}
                   </li>
                 </ul>
@@ -365,11 +365,11 @@
             <div v-if="currentStep === 4" class="space-y-6 text-center">
               <div class="space-y-4">
                 <UIcon name="i-lucide-check-circle" class="text-6xl text-green-600 mx-auto" />
-                <h2 class="text-3xl font-bold text-black">Appointment Updated Successfully!</h2>
+                <h2 class="text-lg font-bold text-black sm:text-3xl">Appointment Updated Successfully!</h2>
                 <p class="text-lg text-gray-700">Your appointment has been updated with the new details.</p>
               </div>
 
-              <div class="p-6 bg-green-50 rounded-xl border border-green-200">
+              <div class="p-6 bg-green-50 rounded-xl border border-green-200 sm:w-[500px] mx-auto">
                 <h3 class="font-bold text-lg text-black mb-4">Updated Appointment Details</h3>
                 <div class="space-y-3 text-left max-w-md mx-auto text-black">
                   <div class="flex items-center gap-2">
@@ -1166,7 +1166,7 @@ function previousStep() {
   }
   
   .times-block .grid-cols-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

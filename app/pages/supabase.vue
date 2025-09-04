@@ -320,7 +320,7 @@
                     </UButton>
                     
                     <!-- Changed from grid-cols-2 to grid-cols-3 and added click handlers -->
-                    <div class="flex-1 grid grid-cols-3 gap-4 mx-4">
+                    <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:mx-4">
                       <div
                         v-for="(dateInfo, index) in visibleDates"
                         :key="dateInfo.dateString"
@@ -364,7 +364,7 @@
                       <div class="text-sm text-gray-600 mb-3">
                         Available slots for {{ selectedDateString ? formatDateForDisplay(selectedDateString) : '' }}:
                       </div>
-                      <div class="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+                      <div class="grid sm:grid-cols-4 sm:gap-4 grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
                         <UButton
                           v-for="slot in enabledSlotsForDate"
                           :key="slot.time"
