@@ -319,7 +319,7 @@
                       <UIcon name="i-lucide-chevron-left" class="text-xl" />
                     </UButton>
                     
-                    <!-- Changed from grid-cols-2 to grid-cols-3 and added click handlers -->
+                    <!-- Show 1 date on mobile, 3 on larger screens -->
                     <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:mx-4">
                       <div
                         v-for="(dateInfo, index) in visibleDates"
@@ -348,7 +348,7 @@
                       variant="ghost"
                       size="sm"
                       @click="navigateDate(1)"
-                      :disabled="currentDateIndex >= availableDates.length - 3"
+                      :disabled="currentDateIndex >= availableDates.length - (typeof window !== 'undefined' && window.innerWidth < 640 ? 1 : 3)"
                       class="p-2"
                     >
                       <UIcon name="i-lucide-chevron-right" class="text-xl" />
@@ -1060,7 +1060,10 @@ function isSlotInPastMST(slotTime, dateString) {
 const currentDateIndex = ref(0)
 const availableDates = ref([])
 const visibleDates = computed(() => {
-  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + 3)
+  // Show only 1 date on mobile, 3 on larger screens
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const dateCount = isMobile ? 1 : 3
+  return availableDates.value.slice(currentDateIndex.value, currentDateIndex.value + dateCount)
 })
 
 function generateAvailableDates() {
@@ -1168,7 +1171,12 @@ function isThisWeek(dateString) {
 
 function navigateDate(direction) {
   const newIndex = currentDateIndex.value + direction
-  if (newIndex >= 0 && newIndex <= availableDates.value.length - 3) {
+  // Calculate max index based on screen size (mobile shows 1, desktop shows 3)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const dateCount = isMobile ? 1 : 3
+  const maxIndex = availableDates.value.length - dateCount
+  
+  if (newIndex >= 0 && newIndex <= maxIndex) {
     currentDateIndex.value = newIndex
     // Auto-select first visible date after navigation and fetch slots
     const firstVisibleDate = availableDates.value[newIndex]
