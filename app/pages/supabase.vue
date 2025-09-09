@@ -964,7 +964,7 @@ async function fetchWorkingSlots() {
     return
   }
 
-  console.log('Fetching working slots for service:', selectedService.value)
+  console.log('Fetching working slots for service:', selectedService.value, 'and staff:', selectedStaff.value)
   
   selectedSlot.value = ''
   workingSlots.value = {}
@@ -972,10 +972,17 @@ async function fetchWorkingSlots() {
   loadingSlots.value = true
 
   const serviceId = selectedService.value
+  const userId = selectedStaff.value && selectedStaff.value !== 'any' ? selectedStaff.value : null
 
   try {
     // Use WorkingSlots endpoint - returns 7 working days skipping weekends
-    const response = await fetch(`https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}`)
+    // Include userId parameter when staff is selected for filtered slots
+    let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}`
+    if (userId) {
+      apiUrl += `&userId=${userId}`
+    }
+    
+    const response = await fetch(apiUrl)
     const data = await response.json()
     console.log('Working Slots API response:', data)
 
