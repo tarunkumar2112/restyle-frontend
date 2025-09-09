@@ -547,8 +547,8 @@ async function fetchAppointmentDetails() {
     if (appointmentData && appointmentData.id) {
       currentAppointment.value = appointmentData
       
-      // Default to 'any' so slots show by default on Step 2
-      selectedStaff.value = 'any'
+      // By default use the current staff ID from the appointment
+      selectedStaff.value = appointmentData.assignedUserId || 'any'
       
       // Set current date and time
       const appointmentDate = new Date(appointmentData.startTime)
@@ -631,6 +631,12 @@ async function fetchWorkingSlots() {
   loadingSlots.value = true
 
   const serviceId = currentAppointment.value.calendarId
+  
+  // By default use the current staff ID from the appointment, or selected staff if changed
+  const userId = selectedStaff.value && selectedStaff.value !== 'any' 
+    ? selectedStaff.value 
+    : currentAppointment.value.assignedUserId || null
+  
   // date param = next date after current booking date
   let startDateParam = ''
   try {
@@ -645,7 +651,13 @@ async function fetchWorkingSlots() {
     }
   } catch {}
 
-  const apiUrl = `https://restyle-api.netlify.app/.netlify/functions/Workingslots?calendarId=${serviceId}${startDateParam}`
+  // Build API URL with userId parameter for filtered slots
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}${startDateParam}`
+  if (userId) {
+    apiUrl += `&userId=${userId}`
+  }
+
+  console.log('Fetching working slots for service:', serviceId, 'and staff:', userId)
 
   try {
     const response = await fetch(apiUrl)
@@ -982,6 +994,21 @@ watch(selectedDateString, (newDateString, oldDateString) => {
       staff: selectedStaff.value
     })
     slotsForDate.value = []
+  }
+})
+
+// Watch for staff changes and refetch working slots with new user ID
+watch(selectedStaff, async (newStaff, oldStaff) => {
+  if (newStaff !== oldStaff && currentAppointment.value.calendarId) {
+    console.log('Staff changed from', oldStaff, 'to', newStaff, '- refetching working slots')
+    // Clear current slots and refetch with new staff
+    workingSlots.value = {}
+    workingSlotsLoaded.value = false
+    slotsForDate.value = []
+    selectedSlot.value = ''
+    
+    // Refetch working slots with new staff ID
+    await fetchWorkingSlots()
   }
 })
 
