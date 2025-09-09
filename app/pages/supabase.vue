@@ -975,7 +975,7 @@ async function fetchWorkingSlots() {
 
   try {
     // Use WorkingSlots endpoint - returns 7 working days skipping weekends
-    const response = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Workingslots?calendarId=${serviceId}`)
+    const response = await fetch(`https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}`)
     const data = await response.json()
     console.log('Working Slots API response:', data)
 
