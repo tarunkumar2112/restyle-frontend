@@ -1470,7 +1470,12 @@ async function handleInformationSubmit() {
       }
     }
 
-    let bookUrl = `https://restyle-api.netlify.app/.netlify/functions/Apointment?contactId=${contactId}&calendarId=${selectedService.value}&startTime=${startTime}&endTime=${endTime}`
+    // Create title in format "Service name - Contact Name"
+    const serviceName = selectedServiceObj.value?.label || 'Service'
+    const contactName = `${contactForm.value.firstName} ${contactForm.value.lastName}`.trim()
+    const title = `${serviceName} - ${contactName}`
+    
+    let bookUrl = `https://restyle-api.netlify.app/.netlify/functions/Apointment?contactId=${contactId}&calendarId=${selectedService.value}&startTime=${startTime}&endTime=${endTime}&title=${encodeURIComponent(title)}`
     if (assignedUserId) bookUrl += `&assignedUserId=${assignedUserId}`
 
     console.log('Booking URL:', bookUrl)
