@@ -1385,6 +1385,25 @@ function setContactIdForPhone(phone, contactId) {
   } catch {}
 }
 
+// Customer upgrade function
+async function upgradeCustomer(contactId, firstName, lastName) {
+  if (!contactId || !firstName || !lastName) return false
+  
+  try {
+    const upgradeUrl = `https://restyle-api.netlify.app/.netlify/functions/upgradecustomer?id=${contactId}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`
+    console.log('Upgrading customer with URL:', upgradeUrl)
+    
+    const response = await fetch(upgradeUrl)
+    const data = await response.json()
+    console.log('Customer upgrade response:', data)
+    
+    return data.success || false
+  } catch (error) {
+    console.error('Error upgrading customer:', error)
+    return false
+  }
+}
+
 async function handleInformationSubmit() {
   if (!validateForm()) {
     return
@@ -1430,6 +1449,22 @@ async function handleInformationSubmit() {
       }
     } else {
       console.log('Using cached contactId:', contactId)
+      
+      // Check if we need to upgrade customer information
+      // For now, we'll always call upgrade to ensure customer info is up to date
+      // In a real scenario, you might want to store and compare the cached names
+      console.log('Upgrading cached customer with new information')
+      const upgradeSuccess = await upgradeCustomer(
+        contactId, 
+        contactForm.value.firstName, 
+        contactForm.value.lastName
+      )
+      
+      if (upgradeSuccess) {
+        console.log('Customer information upgraded successfully')
+      } else {
+        console.warn('Customer upgrade failed, but continuing with booking')
+      }
     }
 
     // 2. Book appointment
