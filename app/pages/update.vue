@@ -885,56 +885,62 @@ async function updateAppointment() {
   updateSuccess.value = false
   
   try {
-    // Build update URL with only changed parameters
-    let updateUrl = `https://restyle-api.netlify.app/.netlify/functions/updateappointment?appointmentId=${appointmentId.value}`
-    
+    // Always determine an assignedUserId to satisfy API requirements
+    let assignedUserIdToSend = null
+    if (selectedStaff.value && selectedStaff.value !== 'any') {
+      assignedUserIdToSend = selectedStaff.value
+    } else if (selectedStaff.value === 'any') {
+      const realStaff = staffRadioItems.value.filter(item => item.value !== 'any')
+      if (realStaff.length > 0) {
+        assignedUserIdToSend = realStaff[0].value
+      }
+    }
+    if (!assignedUserIdToSend && currentAppointment.value.assignedUserId) {
+      assignedUserIdToSend = currentAppointment.value.assignedUserId
+    }
+
+    if (!assignedUserIdToSend) {
+      throw new Error('A team member needs to be selected. assignedUserId is missing')
+    }
+
+    // Build update URL. Always include assignedUserId
+    let updateUrl = `https://restyle-api.netlify.app/.netlify/functions/updateappointment?appointmentId=${appointmentId.value}&assignedUserId=${assignedUserIdToSend}`
+
     // Add time parameters if changed
-    if (selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime) || 
-        selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)) {
-      
+    if (
+      selectedSlot.value !== formatAppointmentTime(currentAppointment.value.startTime) ||
+      selectedDateString.value !== formatAppointmentDateString(currentAppointment.value.startTime)
+    ) {
       const jsDate = new Date(selectedDateString.value + 'T00:00:00')
       const slotMatch = selectedSlot.value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-      
+
       if (slotMatch) {
         let hour = parseInt(slotMatch[1])
         const minute = parseInt(slotMatch[2])
         const period = slotMatch[3].toUpperCase()
-        
+
         if (period === 'PM' && hour !== 12) hour += 12
         if (period === 'AM' && hour === 12) hour = 0
-        
+
         jsDate.setHours(hour, minute, 0, 0)
-        
+
         // Convert to UTC (MST is UTC-7)
         const mstOffset = -7 * 60 * 60 * 1000
         const utcStartTime = new Date(jsDate.getTime() - mstOffset)
-        
+
         // Calculate end time (assuming same duration)
         const originalStart = new Date(currentAppointment.value.startTime)
         const originalEnd = new Date(currentAppointment.value.endTime)
         const duration = originalEnd.getTime() - originalStart.getTime()
         const utcEndTime = new Date(utcStartTime.getTime() + duration)
-        
+
         updateUrl += `&startTime=${encodeURIComponent(utcStartTime.toISOString())}`
         updateUrl += `&endTime=${encodeURIComponent(utcEndTime.toISOString())}`
       }
     }
-    
-    // Add staff parameter if changed
-    if (selectedStaff.value && selectedStaff.value !== currentAppointment.value.assignedUserId) {
-      let assignedUserId = selectedStaff.value
-      if (assignedUserId === 'any') {
-        // Pick a random staff member
-        const realStaff = staffRadioItems.value.filter(item => item.value !== 'any')
-        if (realStaff.length > 0) {
-          assignedUserId = realStaff[Math.floor(Math.random() * realStaff.length)].value
-        }
-      }
-      updateUrl += `&assignedUserId=${assignedUserId}`
-    }
-    
+
     console.log('Update URL:', updateUrl)
-    
+
     const response = await fetch(updateUrl)
     const data = await response.json()
     
