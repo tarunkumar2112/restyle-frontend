@@ -977,9 +977,9 @@ async function fetchWorkingSlots() {
   try {
     // Use WorkingSlots endpoint - returns 7 working days skipping weekends
     // Include userId parameter when staff is selected for filtered slots
-    let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}`
+    let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/slots?calendarId=${serviceId}`
     if (userId) {
-      apiUrl += `&userId=${userId}`
+      apiUrl += `&barberId=${userId}`
     }
     
     const response = await fetch(apiUrl)

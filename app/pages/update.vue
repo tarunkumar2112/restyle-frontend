@@ -652,9 +652,9 @@ async function fetchWorkingSlots() {
   } catch {}
 
   // Build API URL with userId parameter for filtered slots
-  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/filteredslot?calendarId=${serviceId}${startDateParam}`
+  let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/slots?calendarId=${serviceId}${startDateParam}`
   if (userId) {
-    apiUrl += `&userId=${userId}`
+    apiUrl += `&barberId=${userId}`
   }
 
   console.log('Fetching working slots for service:', serviceId, 'and staff:', userId)
