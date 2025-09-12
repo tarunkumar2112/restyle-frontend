@@ -162,6 +162,21 @@
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Choose Your Stylist</h2>
                 <p class="text-gray-700">Select your preferred stylist or let us choose the best available</p>
+                
+                <!-- Debug Info - Remove in production -->
+                <div class="mt-4 p-3 bg-gray-100 rounded text-sm text-left max-w-md mx-auto">
+                  <div class="font-semibold mb-2">Debug Info:</div>
+                  <div>Selected Service: {{ selectedService }}</div>
+                  <div>Selected Staff: {{ selectedStaff }}</div>
+                  <div>Available Staff Count: {{ staffRadioItems.length }}</div>
+                  <div>Loading Staff: {{ loadingStaff }}</div>
+                  <div class="mt-2">
+                    <div class="font-medium">Staff List:</div>
+                    <div v-for="staff in staffRadioItems" :key="staff.value" class="text-xs">
+                      • {{ staff.label }} (ID: {{ staff.value }})
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Summary cards: Service | Guests | Staff -->
@@ -295,6 +310,21 @@
               <div class="text-center mb-8">
                 <h2 class="text-2xl font-bold text-black mb-2">Select Date & Time</h2>
                 <p class="text-gray-700">Choose your preferred appointment slot</p>
+                
+                <!-- Debug Info - Remove in production -->
+                <div class="mt-4 p-3 bg-blue-100 rounded text-sm text-left max-w-lg mx-auto">
+                  <div class="font-semibold mb-2">Slots Debug Info:</div>
+                  <div>Selected Service: {{ selectedService }}</div>
+                  <div>Selected Staff: {{ selectedStaff }}</div>
+                  <div>Working Slots Loaded: {{ workingSlotsLoaded }}</div>
+                  <div>Selected Date: {{ selectedDateString }}</div>
+                  <div>Available Dates Count: {{ availableDates.length }}</div>
+                  <div>Slots for Selected Date: {{ enabledSlotsForDate.length }}</div>
+                  <div class="mt-2">
+                    <div class="font-medium">Working Slots Keys:</div>
+                    <div class="text-xs">{{ Object.keys(workingSlots) }}</div>
+                  </div>
+                </div>
               </div>
 
               <!-- Added MST timezone indicator -->
@@ -919,8 +949,11 @@ watch(selectedService, async (serviceId) => {
     const groupId = selectedDepartment.value
     const lastServiceApi = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Services?id=${groupId}`)
     const lastServiceData = await lastServiceApi.json()
+    console.log('Service API response:', lastServiceData)
     const serviceObj = (lastServiceData.calendars || []).find(s => s.id === serviceId)
+    console.log('Found service object:', serviceObj)
     const teamMembers = serviceObj?.teamMembers || []
+    console.log('Team members for service:', teamMembers)
 
     const items = [{
       label: 'Any available staff',
@@ -933,12 +966,15 @@ watch(selectedService, async (serviceId) => {
       try {
         const staffRes = await fetch(`https://restyle-api.netlify.app/.netlify/functions/Staff?id=${member.userId}`)
         const staffData = await staffRes.json()
+        console.log('Staff API response for member:', member.userId, staffData)
         return {
           label: staffData.name,
-          value: staffData.id,
+          value: member.userId, // Use member.userId instead of staffData.id to match team member
+          originalStaffId: staffData.id, // Keep original for reference
           icon: 'i-lucide-user'
         }
       } catch (e) {
+        console.error('Error fetching staff data for member:', member.userId, e)
         return null
       }
     })
@@ -965,6 +1001,7 @@ async function fetchWorkingSlots() {
   }
 
   console.log('Fetching working slots for service:', selectedService.value, 'and staff:', selectedStaff.value)
+  console.log('Available staff items:', staffRadioItems.value)
   
   selectedSlot.value = ''
   workingSlots.value = {}
@@ -980,7 +1017,11 @@ async function fetchWorkingSlots() {
     let apiUrl = `https://restyle-api.netlify.app/.netlify/functions/staffSlots?calendarId=${serviceId}`
     if (userId) {
       apiUrl += `&userId=${userId}`
+      console.log('Fetching slots for specific staff userId:', userId)
+    } else {
+      console.log('Fetching slots for all staff (any available)')
     }
+    console.log('Staff Slots API URL:', apiUrl)
     
     const response = await fetch(apiUrl)
     const data = await response.json()
@@ -996,6 +1037,27 @@ async function fetchWorkingSlots() {
       console.log('Working slots loaded successfully:', data.slots)
     } else {
       console.error('Invalid working slots response format:', data)
+      // If specific staff selected but no slots returned, try fetching for all staff
+      if (userId && selectedStaff.value !== 'any') {
+        console.log('No slots found for specific staff, trying to fetch all available slots')
+        const fallbackUrl = `https://restyle-api.netlify.app/.netlify/functions/staffSlots?calendarId=${serviceId}`
+        console.log('Fallback API URL:', fallbackUrl)
+        
+        try {
+          const fallbackResponse = await fetch(fallbackUrl)
+          const fallbackData = await fallbackResponse.json()
+          console.log('Fallback API response:', fallbackData)
+          
+          if (fallbackData.slots && fallbackData.calendarId) {
+            workingSlots.value = fallbackData.slots
+            workingSlotsLoaded.value = true
+            generateAvailableDates()
+            console.log('Fallback slots loaded successfully:', fallbackData.slots)
+          }
+        } catch (fallbackError) {
+          console.error('Fallback request also failed:', fallbackError)
+        }
+      }
     }
   } catch (error) {
     console.error('Error fetching working slots:', error)
