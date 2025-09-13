@@ -300,19 +300,7 @@
                 <p class="text-gray-700">Choose your preferred appointment slot</p>
                 
                 <!-- Debug Info - Remove in production -->
-                <div class="mt-4 p-3 bg-blue-100 rounded text-sm text-left max-w-lg mx-auto">
-                  <div class="font-semibold mb-2">Slots Debug Info:</div>
-                  <div>Selected Service: {{ selectedService }}</div>
-                  <div>Selected Staff: {{ selectedStaff }}</div>
-                  <div>Working Slots Loaded: {{ workingSlotsLoaded }}</div>
-                  <div>Selected Date: {{ selectedDateString }}</div>
-                  <div>Available Dates Count: {{ availableDates.length }}</div>
-                  <div>Slots for Selected Date: {{ enabledSlotsForDate.length }}</div>
-                  <div class="mt-2">
-                    <div class="font-medium">Working Slots Keys:</div>
-                    <div class="text-xs">{{ Object.keys(workingSlots) }}</div>
-                  </div>
-                </div>
+              
               </div>
 
               <!-- Added MST timezone indicator -->
