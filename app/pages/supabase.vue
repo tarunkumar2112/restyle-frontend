@@ -164,7 +164,7 @@
                 <p class="text-gray-700">Select your preferred stylist or let us choose the best available</p>
                 
                 <!-- Debug Info - Remove in production -->
-                <div class="mt-4 p-3 bg-gray-100 rounded text-sm text-left max-w-md mx-auto">
+                <div class="mt-4 p-3 bg-gray-100 rounded text-sm text-left max-w-md mx-auto display-none">
                   <div class="font-semibold mb-2">Debug Info:</div>
                   <div>Selected Service: {{ selectedService }}</div>
                   <div>Selected Staff: {{ selectedStaff }}</div>
