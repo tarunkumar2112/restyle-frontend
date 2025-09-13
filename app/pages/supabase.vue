@@ -164,19 +164,7 @@
                 <p class="text-gray-700">Select your preferred stylist or let us choose the best available</p>
                 
                 <!-- Debug Info - Remove in production -->
-                <div class="mt-4 p-3 bg-gray-100 rounded text-sm text-left max-w-md mx-auto display-none">
-                  <div class="font-semibold mb-2">Debug Info:</div>
-                  <div>Selected Service: {{ selectedService }}</div>
-                  <div>Selected Staff: {{ selectedStaff }}</div>
-                  <div>Available Staff Count: {{ staffRadioItems.length }}</div>
-                  <div>Loading Staff: {{ loadingStaff }}</div>
-                  <div class="mt-2">
-                    <div class="font-medium">Staff List:</div>
-                    <div v-for="staff in staffRadioItems" :key="staff.value" class="text-xs">
-                      • {{ staff.label }} (ID: {{ staff.value }})
-                    </div>
-                  </div>
-                </div>
+               
               </div>
 
               <!-- Summary cards: Service | Guests | Staff -->
